@@ -13,7 +13,7 @@ window.GAMBAR = {
   ]
 };
 
-/* Data contoh RT 05 / RW 02 Kelurahan Contoh.
+/* Data contoh RT 07 / RW 13 Kelurahan Pagelaran.
    Semua nama, NIK, No. KK, dan nomor HP di sini FIKTIF. Dibuat relatif ke bulan berjalan
    supaya iuran & kas selalu terlihat "hidup" saat dicoba. */
 window.buatDataContoh = function () {
@@ -92,7 +92,7 @@ window.buatDataContoh = function () {
 
   var info = [
     { id: 'in1', jenis: 'pengumuman', judul: 'Kerja bakti bersihkan selokan sebelum musim hujan', isi: 'Mohon setiap KK mengirim minimal satu orang. Bawa cangkul atau sapu lidi. Konsumsi disediakan pengurus.', tgl: depan(3), jam: '07:00', tempat: 'Kumpul di pos ronda Blok B', sematkan: true },
-    { id: 'in2', jenis: 'agenda', judul: 'Posyandu balita & lansia', isi: 'Penimbangan, imunisasi, dan cek tensi gratis. Bawa buku KIA.', tgl: depan(6), jam: '08:00', tempat: 'Balai warga RW 02' },
+    { id: 'in2', jenis: 'agenda', judul: 'Posyandu balita & lansia', isi: 'Penimbangan, imunisasi, dan cek tensi gratis. Bawa buku KIA.', tgl: depan(6), jam: '08:00', tempat: 'Balai warga RW 13' },
     { id: 'in3', jenis: 'agenda', judul: 'Rapat pengurus & perwakilan warga', isi: 'Bahas rencana pengecatan gapura dan laporan kas triwulan.', tgl: depan(10), jam: '19:30', tempat: 'Rumah Ketua RT, Blok A No. 1' },
     { id: 'in4', jenis: 'pengumuman', judul: 'Jadwal ronda malam diperbarui', isi: 'Jadwal ronda bulan ini sudah ditempel di pos ronda. Yang berhalangan harap tukar jadwal dengan tetangga dan lapor ke Sie Keamanan.', tgl: tgl(0, 1) },
     { id: 'in5', jenis: 'agenda', judul: 'Pengajian rutin ibu-ibu', isi: 'Pengajian bulanan bergiliran. Tuan rumah: Ibu Dewi, Blok A No. 3.', tgl: depan(13), jam: '16:00', tempat: 'Blok A No. 3' },
@@ -102,10 +102,10 @@ window.buatDataContoh = function () {
   return {
     versi: 1,
     pengaturan: {
-      rt: '05', rw: '02', kelurahan: 'Contoh', kecamatan: 'Sukamaju', kota: 'Kota Bandung', provinsi: 'Jawa Barat',
-      alamat: 'Jl. Melati Raya, Kel. Contoh, Kec. Sukamaju, Kota Bandung 40123',
+      rt: '07', rw: '13', kelurahan: 'Pagelaran', kecamatan: 'Ciomas', kota: 'Kabupaten Bogor', provinsi: 'Jawa Barat',
+      alamat: 'Perumahan Bukit Asri, Kel. Pagelaran, Kec. Ciomas, Kab. Bogor, Jawa Barat',
       iuran: nominal, iuranMulai: bk(-5),
-      caraBayar: 'Tunai ke Bendahara atau transfer ke BRI 0000-01-000000-00-0 a.n. Kas RT 05 (contoh)',
+      caraBayar: 'Tunai ke Bendahara atau transfer ke BRI 0000-01-000000-00-0 a.n. Kas RT 07 (contoh)',
       pin: '1234'
     },
     pengurus: [
@@ -132,7 +132,7 @@ window.buatDataContoh = function () {
       { id: 'tp8', nama: 'PLN', nomor: '123', ket: 'Gangguan listrik / call center PLN.', jenis: 'nasional' }
     ],
     surat: [
-      { id: 'sr1', no: '001/RT05/RW02/' + ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][new Date(tgl(-1, 9)).getMonth()] + '/' + tgl(-1, 9).slice(0, 4), tgl: tgl(-1, 9), nama: kk[1].anggota[1].nama, nik: kk[1].anggota[1].nik, jk: 'P', tempatLahir: kk[1].anggota[1].tempatLahir, tglLahir: kk[1].anggota[1].tglLahir, agama: 'Islam', pekerjaan: kk[1].anggota[1].pekerjaan, kawin: 'Kawin', alamat: kk[1].alamat, keperluan: 'Pengurusan SKCK', ket: 'Untuk melamar pekerjaan.' }
+      { id: 'sr1', no: '001/RT07/RW13/' + ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][new Date(tgl(-1, 9)).getMonth()] + '/' + tgl(-1, 9).slice(0, 4), tgl: tgl(-1, 9), nama: kk[1].anggota[1].nama, nik: kk[1].anggota[1].nik, jk: 'P', tempatLahir: kk[1].anggota[1].tempatLahir, tglLahir: kk[1].anggota[1].tglLahir, agama: 'Islam', pekerjaan: kk[1].anggota[1].pekerjaan, kawin: 'Kawin', alamat: kk[1].alamat, keperluan: 'Pengurusan SKCK', ket: 'Untuk melamar pekerjaan.' }
     ],
     nomorSurat: { tahun: Number(tgl(-1, 9).slice(0, 4)), urut: 1 }
   };
