@@ -115,6 +115,22 @@ window.buatDataContoh = function () {
       { jabatan: 'Sie Keamanan', nama: 'Eko Prasetyo', wa: '6281200001170' }
     ],
     kk: kk, iuran: iuran, kas: kas, info: info,
+    usaha: [
+      { id: 'us1', nama: 'Warung Makan Bu Siti (Contoh)', pemilik: 'Siti Aminah', kkId: 'kk1', jenis: 'Makanan & Minuman', wa: '6281200001100', alamat: 'Blok A No. 1', jam: '07:00–17:00', ket: 'Contoh: menerima pesanan nasi kotak.', aktif: true, dibuat: tgl(0, 1) },
+      { id: 'us2', nama: 'Jasa Cuci Motor (Contoh)', pemilik: 'Agus Pratama', kkId: 'kk2', jenis: 'Jasa', wa: '6281200001107', alamat: 'Blok A No. 3', jam: '08:00–16:00', ket: 'Contoh: cuci motor dan ganti oli.', aktif: true, dibuat: tgl(0, 1) },
+      { id: 'us3', nama: 'Toko Kelontong Bu Lilis (Contoh)', pemilik: 'Lilis Suryani', kkId: 'kk6', jenis: 'Produk / Barang', wa: '6281200001135', alamat: 'Blok B No. 5', jam: '07:00–20:00', ket: 'Contoh: sembako dan kebutuhan harian.', aktif: true, dibuat: tgl(0, 1) },
+      { id: 'us4', nama: 'Jasa Jahit (Contoh)', pemilik: 'Ratna Dewi', kkId: 'kk10', jenis: 'Lainnya', wa: '6281200001163', alamat: 'Blok C No. 3', jam: '09:00–17:00', ket: 'Contoh: jahit dan permak pakaian.', aktif: true, dibuat: tgl(0, 1) }
+    ],
+    telpPenting: [
+      { id: 'tp1', nama: 'Layanan Darurat Terpadu', nomor: '112', ket: 'Bebas pulsa; operator meneruskan ke polisi / medis / pemadam. Langkah pertama bila panik. Catatan: ketersediaan 112 bisa berbeda antar daerah.', jenis: 'nasional' },
+      { id: 'tp2', nama: 'Polisi', nomor: '110', ket: 'Lapor tindak kriminal, kecelakaan lalu lintas, gangguan keamanan.', jenis: 'nasional' },
+      { id: 'tp3', nama: 'Pemadam Kebakaran', nomor: '113', ket: 'Kebakaran rumah/gedung/lahan.', jenis: 'nasional' },
+      { id: 'tp4', nama: 'Ambulans', nomor: '118', ket: 'Ambulans gawat darurat.', jenis: 'nasional' },
+      { id: 'tp5', nama: 'Ambulans / PSC Kemenkes', nomor: '119', ket: 'Public Safety Center, layanan darurat medis terpadu.', jenis: 'nasional' },
+      { id: 'tp6', nama: 'Basarnas / SAR', nomor: '115', ket: 'Pencarian dan pertolongan.', jenis: 'nasional' },
+      { id: 'tp7', nama: 'BNPB', nomor: '117', ket: 'Penanggulangan bencana.', jenis: 'nasional' },
+      { id: 'tp8', nama: 'PLN', nomor: '123', ket: 'Gangguan listrik / call center PLN.', jenis: 'nasional' }
+    ],
     surat: [
       { id: 'sr1', no: '001/RT05/RW02/' + ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][new Date(tgl(-1, 9)).getMonth()] + '/' + tgl(-1, 9).slice(0, 4), tgl: tgl(-1, 9), nama: kk[1].anggota[1].nama, nik: kk[1].anggota[1].nik, jk: 'P', tempatLahir: kk[1].anggota[1].tempatLahir, tglLahir: kk[1].anggota[1].tglLahir, agama: 'Islam', pekerjaan: kk[1].anggota[1].pekerjaan, kawin: 'Kawin', alamat: kk[1].alamat, keperluan: 'Pengurusan SKCK', ket: 'Untuk melamar pekerjaan.' }
     ],

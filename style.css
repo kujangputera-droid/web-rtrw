@@ -93,7 +93,7 @@ body.panel .kerangka { max-width: none; }
 @media (max-width: 860px) {
   body.panel .kerangka { grid-template-columns: 1fr; }
   body.panel .samping { display: none; }
-  body.panel .bawah { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30; background: color-mix(in srgb, var(--nav) 92%, transparent); backdrop-filter: saturate(1.4) blur(16px); border: 1px solid var(--nav-garis); border-radius: 26px; padding: 6px 4px; box-shadow: var(--bayang-angkat); }
+  body.panel .bawah { display: grid; grid-template-columns: repeat(7, 1fr); position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30; background: color-mix(in srgb, var(--nav) 92%, transparent); backdrop-filter: saturate(1.4) blur(16px); border: 1px solid var(--nav-garis); border-radius: 26px; padding: 6px 4px; box-shadow: var(--bayang-angkat); }
   body.panel main { padding-bottom: 110px; }
   .bawah .nav-item { flex-direction: column; gap: 2px; padding: 6px 0; font-size: 10.5px; font-weight: 700; justify-content: center; border-radius: 18px; }
   .bawah .nav-item[aria-current="page"] { background: none; color: var(--nav-teks); }
@@ -418,6 +418,18 @@ html.mode-pilih [data-pilih-hover] { outline: 2px solid var(--tema-aksen) !impor
 .merek-logo .merek-gambar { background: var(--permukaan); }
 .hero-foto { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--r-besar) var(--r-besar) 0 0; }
 .galeri-wadah { margin-top: 36px; }
+/* No Telp Penting (T-1): pola grid sama dengan .galeri, warna dari token */
+.telp-penting { margin-bottom: 36px; }
+.telp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.telp-kartu { display: flex; flex-direction: column; gap: 8px; }
+.telp-kartu h3 { font-size: 17px; font-weight: 800; margin: 0; }
+.telp-nomor { font-size: var(--fs-32); font-weight: 900; line-height: 1.1; color: var(--utama-teks); font-variant-numeric: tabular-nums; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.telp-kartu p { margin: 0; color: var(--redup); font-size: 14px; flex: 1; }
+.telp-tombol { align-self: flex-start; margin-top: 4px; }
+.telp-lokal-kosong { margin: 12px 0 0; color: var(--redup); font-size: 14px; font-weight: 600; }
+.telp-nasional { background: var(--utama-latar); border-color: var(--utama-garis); }
+.telp-lokal { background: var(--aksen-latar); border-color: color-mix(in srgb, var(--tema-aksen) 35%, var(--garis)); }
+.telp-kartu .lencana { align-self: flex-start; }
 .galeri { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 16px; }
 .galeri-item { margin: 0; border-radius: var(--tema-radius); overflow: hidden; background: var(--permukaan); border: 1px solid var(--garis, transparent); }
 .galeri-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform var(--sedang); }

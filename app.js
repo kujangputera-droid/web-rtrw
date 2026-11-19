@@ -9,7 +9,7 @@
   var DEMO = /[?&]demo\b/.test(location.search);
   var KUNCI = DEMO ? 'website-rt-demo' : 'website-rt-data';
   var KUNCI_TAMPILAN = 'website-rt-tampilan';
-  var VERSI = 1;
+  var VERSI = 2;
   var RM = matchMedia('(prefers-reduced-motion: reduce)');
   var BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   var HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -48,6 +48,7 @@
     atur: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
     tambah: '<path d="M12 5v14M5 12h14"/>', cari: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     wa: '<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/>',
+    telepon: '<path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
     kiri: '<path d="m15 18-6-6 6-6"/>', kanan: '<path d="m9 18 6-6-6-6"/>', tutup: '<path d="M18 6 6 18M6 6l12 12"/>',
     cek: '<path d="m5 12.5 4.5 4.5L19 7.5"/>', unduh: '<path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/>', unggah: '<path d="M12 21V9m-5 5 5-5 5 5M4 4h16"/>',
     kalender: '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>', jam: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -71,6 +72,17 @@
   function migrasi(d) {
     d.versi = d.versi || 1;
     d.pengurus = d.pengurus || []; d.kk = d.kk || []; d.iuran = d.iuran || {}; d.kas = d.kas || []; d.info = d.info || []; d.surat = d.surat || [];
+    d.usaha = d.usaha || [];
+    d.telpPenting = d.telpPenting || [
+      { id: 'tp1', nama: 'Layanan Darurat Terpadu', nomor: '112', ket: 'Bebas pulsa; operator meneruskan ke polisi / medis / pemadam. Langkah pertama bila panik. Catatan: ketersediaan 112 bisa berbeda antar daerah.', jenis: 'nasional' },
+      { id: 'tp2', nama: 'Polisi', nomor: '110', ket: 'Lapor tindak kriminal, kecelakaan lalu lintas, gangguan keamanan.', jenis: 'nasional' },
+      { id: 'tp3', nama: 'Pemadam Kebakaran', nomor: '113', ket: 'Kebakaran rumah/gedung/lahan.', jenis: 'nasional' },
+      { id: 'tp4', nama: 'Ambulans', nomor: '118', ket: 'Ambulans gawat darurat.', jenis: 'nasional' },
+      { id: 'tp5', nama: 'Ambulans / PSC Kemenkes', nomor: '119', ket: 'Public Safety Center, layanan darurat medis terpadu.', jenis: 'nasional' },
+      { id: 'tp6', nama: 'Basarnas / SAR', nomor: '115', ket: 'Pencarian dan pertolongan.', jenis: 'nasional' },
+      { id: 'tp7', nama: 'BNPB', nomor: '117', ket: 'Penanggulangan bencana.', jenis: 'nasional' },
+      { id: 'tp8', nama: 'PLN', nomor: '123', ket: 'Gangguan listrik / call center PLN.', jenis: 'nasional' }
+    ];
     d.nomorSurat = d.nomorSurat || { tahun: new Date().getFullYear(), urut: 0 };
     d.pengaturan = Object.assign({ rt: '01', rw: '01', kelurahan: '', kecamatan: '', kota: '', provinsi: '', alamat: '', iuran: 25000, iuranMulai: bulanKey(), caraBayar: '', pin: '1234' }, d.pengaturan);
     d.kk.forEach(function (k) { k.anggota = k.anggota || []; k.status = k.status || 'tetap'; });
@@ -191,9 +203,11 @@
     { id: 'iuran', label: 'Iuran', ikon: 'iuran' },
     { id: 'kas', label: 'Kas', ikon: 'kas' },
     { id: 'info', label: 'Info', ikon: 'info' },
+    { id: 'usaha', label: 'Usaha', ikon: 'dompet' },
     { id: 'surat', label: 'Surat', ikon: 'surat' },
     { id: 'pengaturan', label: 'Pengaturan', ikon: 'atur' }
   ];
+  var JENIS_USAHA = ['Makanan & Minuman', 'Jasa', 'Produk / Barang', 'Lainnya'];
   var terbuka = DEMO || sessionStorage.getItem('website-rt-buka') === '1';
   var HAL = {};
   var halSebelum = '';
@@ -201,6 +215,7 @@
   function rute() {
     var h = location.hash.replace(/^#\/?/, '');
     var bag = h.split('/');
+    if (bag[0] === 'usaha') return { hal: 'usaha' };
     if (bag[0] !== 'panel') return { hal: 'publik' };
     var id = bag[1] || 'ringkas';
     if (!MENU.some(function (m) { return m.id === id; })) id = 'ringkas';
@@ -210,8 +225,11 @@
 
   function render() {
     var r = rute();
-    if (r.hal !== 'publik' && !terbuka) { location.replace('#/'); bukaPin(r.hal); return; }
-    var panel = r.hal !== 'publik';
+    // Panel dikenali dari awalan hash '#/panel/', BUKAN dari r.hal: id menu panel
+    // 'usaha' sama dengan hal direktori publik, jadi tes r.hal saja akan salah
+    // menganggap panel Usaha sebagai halaman publik (tanpa PIN).
+    var panel = /^#\/panel(\/|$)/.test(location.hash);
+    if (panel && !terbuka) { history.replaceState(null, '', '#/'); bukaPin(r.hal); return; }
     document.body.classList.toggle('panel', panel);
     $('#merekSub').textContent = panel ? 'Panel pengurus' : 'Layanan warga';
     var bp = $('#btnPanel');
@@ -220,15 +238,15 @@
     $('#btnAtur').hidden = !panel; $('#btnAtur').innerHTML = ik('atur');
     if (panel) gambarNav(r.hal);
     var isi = $('#isi');
-    isi.innerHTML = '<div class="halaman">' + (panel ? HAL[r.hal](r.arg) : halPublik()) + '</div>';
+    isi.innerHTML = '<div class="halaman">' + (panel ? HAL[r.hal](r.arg) : r.hal === 'usaha' ? halUsaha() : halPublik()) + '</div>';
     stagger(isi);
     tandaiBagian();
     if (bagianSorot) sorot(bagianSorot);
-    if (HAL[r.hal + 'Pasca']) HAL[r.hal + 'Pasca'](r.arg);
+    if (panel) { if (HAL[r.hal + 'Pasca']) HAL[r.hal + 'Pasca'](r.arg); } else if (r.hal === 'usaha') { halUsahaPasca(); }
     hitungNaik(isi);
     if (halSebelum && halSebelum !== r.hal) { window.scrollTo(0, 0); isi.focus({ preventScroll: true }); }
     halSebelum = r.hal;
-    document.title = (panel ? MENU.filter(function (m) { return m.id === r.hal; })[0].label + ' · ' : '') + namaUsaha();
+    document.title = (panel ? MENU.filter(function (m) { return m.id === r.hal; })[0].label + ' · ' : r.hal === 'usaha' ? 'Usaha Warga · ' : '') + namaUsaha();
   }
   function gambarNav(aktif) {
     var html = MENU.map(function (m) {
@@ -297,7 +315,8 @@
       { w: 'hijau', ik: 'info', j: 'Baca kabar terbaru', d: peng.length + ' pengumuman di papan warga', a: '#pengumuman', t: 'Buka papan' },
       { w: 'kuning', ik: 'kalender', j: 'Ikut kegiatan', d: ag.length ? ag.length + ' agenda menunggu kehadiran Anda' : 'Belum ada agenda baru', a: '#agenda', t: 'Lihat agenda' },
       { w: 'ungu', ik: 'surat', j: 'Urus surat pengantar', d: 'Kirim nama & keperluan ke Sekretaris', a: sek ? waLink(sek.wa, 'Assalamualaikum ' + sek.jabatan + ' ' + namaRT() + ', saya ingin minta surat pengantar untuk keperluan: ') : '#kontak', t: 'Minta via WA', luar: !!sek },
-      { w: 'oranye', ik: 'iuran', j: 'Bayar iuran bulanan', d: rp(D.pengaturan.iuran) + ' per KK tiap bulan, tunai atau transfer', a: '#kontak', t: 'Hubungi Bendahara' }
+      { w: 'oranye', ik: 'iuran', j: 'Bayar iuran bulanan', d: rp(D.pengaturan.iuran) + ' per KK tiap bulan, tunai atau transfer', a: '#kontak', t: 'Hubungi Bendahara' },
+      { w: 'hijau', ik: 'dompet', j: 'Lihat usaha warga', d: (D.usaha || []).filter(function (u) { return u.aktif; }).length + ' usaha warga di lingkungan ini', a: '#/usaha', t: 'Buka direktori' }
     ];
     return '<section class="pahlawan">' +
       '<div class="pahlawan-teks"><small>' + e(namaRT()) + ' · Kel. ' + e(D.pengaturan.kelurahan) + '</small>' +
@@ -305,11 +324,12 @@
       '<p>Pengumuman, jadwal kegiatan, dan kontak pengurus <span data-tema-nama>' + e(namaUsaha()) + '</span>, semuanya di satu papan.</p>' + mundur +
       '<div class="baris-aksi"><a class="btn" href="#pengumuman">' + ik('info') + 'Lihat pengumuman</a><a class="btn btn-garis" href="#kontak">' + ik('wa') + 'Kontak pengurus</a></div></div>' +
       '<div class="pahlawan-gambar">' + (G.hero ? '<img class="hero-foto" src="' + e(G.hero) + '" alt="Foto lingkungan ' + e(namaRT()) + '" onerror="this.outerHTML=window.__ilustrasi">' : ilustrasiKampung()) + '</div></section>' +
-      '<section class="langkah-wadah" aria-labelledby="judulLangkah"><div class="judul-baris"><h2 id="judulLangkah">Yang bisa Anda lakukan</h2><span class="judul-sub">4 hal penting untuk warga</span></div>' +
+      '<section class="langkah-wadah" aria-labelledby="judulLangkah"><div class="judul-baris"><h2 id="judulLangkah">Yang bisa Anda lakukan</h2><span class="judul-sub">' + langkah.length + ' hal penting untuk warga</span></div>' +
       '<ol class="langkah-grid stagger">' + langkah.map(function (l, i) {
         return '<li class="langkah p-' + l.w + '"><span class="langkah-no">0' + (i + 1) + '</span><span class="langkah-ikon">' + ik(l.ik) + '</span><h3>' + l.j + '</h3><p>' + l.d + '</p>' +
           '<a class="langkah-cta" href="' + l.a + '"' + (l.luar ? ' target="_blank" rel="noopener"' : '') + '>' + l.t + ik('kanan') + '</a></li>';
       }).join('') + '</ol></section>' +
+      bagianTelpPenting() +
       '<div class="publik-grid">' +
       '<section aria-labelledby="pengumuman"><div class="judul-baris"><h2 id="pengumuman">Papan pengumuman</h2><span class="judul-sub">' + peng.length + ' kabar</span></div><div class="tumpuk stagger">' + (peng.length ? peng.map(function (i) { return kartuInfo(i); }).join('') : kosong('Belum ada pengumuman.', 'info')) + '</div></section>' +
       '<div class="tumpuk"><section aria-labelledby="agenda"><div class="judul-baris"><h2 id="agenda">Agenda terdekat</h2></div><div class="tumpuk stagger">' + (ag.length ? ag.slice(0, 4).map(function (i) { return kartuInfo(i); }).join('') : kosong('Belum ada agenda.', 'kalender')) + '</div></section>' +
@@ -319,11 +339,56 @@
       '<section class="kartu warga-kita"><h2>Warga kita</h2><div class="grid" style="grid-template-columns:1fr 1fr"><div class="stat p-hijau"><div class="label">Kepala keluarga</div><div class="nilai" data-hitung="' + D.kk.length + '">0</div></div><div class="stat p-kuning"><div class="label">Jiwa</div><div class="nilai" data-hitung="' + jiwaTotal() + '">0</div></div></div></section>' +
       '</div></div>' + galeri();
   }
+  // --- No Telp Penting (halaman publik; data dari D.telpPenting, seed U-1)
+  function bagianTelpPenting() {
+    var semua = D.telpPenting || [];
+    var urut = semua.filter(function (t) { return t.jenis === 'nasional'; }).concat(semua.filter(function (t) { return t.jenis !== 'nasional'; }));
+    var adaLokal = semua.some(function (t) { return t.jenis === 'lokal'; });
+    var kartu = urut.map(function (t) {
+      var tel = String(t.nomor || '').replace(/[\s-]/g, '');
+      var lokal = t.jenis === 'lokal';
+      return '<article class="kartu telp-kartu ' + (lokal ? 'telp-lokal' : 'telp-nasional') + '"><span class="lencana' + (lokal ? ' aksen' : '') + '">' + (lokal ? 'Lokal' : 'Nasional') + '</span><h3>' + e(t.nama) + '</h3>' +
+        '<div class="telp-nomor">' + e(t.nomor) + '</div>' +
+        (t.ket ? '<p>' + e(t.ket) + '</p>' : '') +
+        '<a class="btn telp-tombol" href="tel:' + e(tel) + '" aria-label="Telepon ' + e(t.nama) + ' ' + e(t.nomor) + '">' + ik('telepon') + 'Telepon</a></article>';
+    }).join('');
+    return '<section class="telp-penting" id="telp-penting" aria-labelledby="judulTelp"><div class="judul-baris"><h2 id="judulTelp">No Telp Penting</h2><span class="judul-sub">Ketuk nomornya untuk langsung menelepon</span></div>' +
+      '<div class="telp-grid stagger">' + kartu + '</div>' +
+      (adaLokal ? '' : '<p class="telp-lokal-kosong">Nomor lokal belum diisi.</p>') + '</section>';
+  }
   function galeri() {
     var g = (G.galeri || []).filter(function (x) { return x && x.src; });
     if (!g.length) return '';
     return '<section class="galeri-wadah" aria-labelledby="galeri"><div class="judul-baris"><h2 id="galeri">Galeri kegiatan</h2><span class="judul-sub">' + g.length + ' foto</span></div><div class="galeri stagger">' +
       g.map(function (x) { return '<figure class="galeri-item">' + gbr(x.src, x.ket) + '<figcaption>' + e(x.ket || '') + '</figcaption></figure>'; }).join('') + '</div></section>';
+  }
+
+  // --- Direktori usaha warga (halaman publik, bukan panel)
+  function halUsaha() {
+    var aktif = (D.usaha || []).filter(function (u) { return u.aktif; });
+    var chip = [['semua', 'Semua']].concat(JENIS_USAHA.map(function (j) { return [j, j]; }));
+    return '<a class="btn btn-garis" href="#/">' + ik('kiri') + 'Kembali ke beranda</a>' +
+      kepalaHal('Direktori Usaha Warga', aktif.length + ' usaha warga di lingkungan ini') +
+      '<p style="color:var(--redup);font-size:14px;margin:0 0 16px">Data contoh — usaha asli akan diganti sesudah daftar asli dikirim.</p>' +
+      '<div class="chip-grup" role="group" aria-label="Saring jenis usaha" style="margin-bottom:16px">' + chip.map(function (c) { return '<button class="chip" data-filter-jenis="' + e(c[0]) + '" aria-pressed="' + (c[0] === 'semua') + '">' + e(c[1]) + '</button>'; }).join('') + '</div>' +
+      '<div class="tumpuk stagger">' + (aktif.length ? aktif.map(function (u) { return kartuUsahaPublik(u); }).join('') : kosong('Belum ada usaha terdaftar.', 'dompet')) + '</div>';
+  }
+  function kartuUsahaPublik(u) {
+    return '<article class="kartu info-kartu" data-jenis="' + e(u.jenis) + '">' +
+      '<div style="flex:1;min-width:0"><div class="baris-aksi" style="margin-bottom:4px"><span class="lencana ' + (u.jenis === 'Makanan & Minuman' ? 'aksen' : 'netral') + '">' + e(u.jenis) + '</span></div>' +
+      '<h3>' + e(u.nama) + '</h3><p>Pemilik: ' + e(u.pemilik) + ' · ' + e(u.alamat) + '</p>' +
+      (u.jam ? '<div class="info-meta"><span>' + ik('jam') + e(u.jam) + '</span></div>' : '') +
+      (u.ket ? '<p>' + e(u.ket) + '</p>' : '') +
+      (u.wa ? '<div class="baris-aksi" style="margin-top:12px"><a class="btn btn-wa btn-kecil" target="_blank" rel="noopener" href="' + waLink(u.wa, 'Halo, saya mau tanya tentang ' + u.nama + '.') + '" aria-label="Chat WhatsApp ' + e(u.nama) + '">' + ik('wa') + 'Chat WA</a></div>' : '') + '</div></article>';
+  }
+  function halUsahaPasca() {
+    $$('[data-filter-jenis]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        $$('[data-filter-jenis]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+        var f = b.dataset.filterJenis;
+        $$('#isi [data-jenis]').forEach(function (k) { k.hidden = f !== 'semua' && k.dataset.jenis !== f; });
+      });
+    });
   }
 
   /* ========== 6. Halaman pengurus ========== */
@@ -625,6 +690,59 @@
     });
   }
 
+  // --- Usaha warga (panel pengurus; daftar + hapus di U-3, form tambah/ubah di U-4)
+  HAL.usaha = function () {
+    var daftar = D.usaha || [];
+    return kepalaHal('Usaha Warga', daftar.length + ' usaha terdaftar · hanya pengurus yang bisa menambah', '<a class="btn btn-garis" href="#/" target="_blank" rel="noopener">Lihat halaman publik</a><button class="btn" data-usaha-baru>' + ik('tambah') + 'Tambah usaha</button>') +
+      '<div class="tumpuk stagger">' + (daftar.length ? daftar.map(function (u) { return kartuUsaha(u); }).join('') : kosong('Belum ada usaha terdaftar.', 'dompet')) + '</div>';
+  };
+  function kartuUsaha(u) {
+    return '<article class="kartu info-kartu">' +
+      '<div style="flex:1;min-width:0"><div class="baris-aksi" style="margin-bottom:4px"><span class="lencana ' + (u.jenis === 'Makanan & Minuman' ? 'aksen' : 'netral') + '">' + e(u.jenis) + '</span>' + (u.aktif ? '' : '<span class="lencana bahaya">Nonaktif</span>') + '</div>' +
+      '<h3>' + e(u.nama) + '</h3><p>Pemilik: ' + e(u.pemilik) + '</p>' +
+      '<div class="info-meta"><span>' + ik('lokasi') + e(u.alamat) + '</span>' + (u.jam ? '<span>' + ik('jam') + e(u.jam) + '</span>' : '') + '</div>' +
+      (u.ket ? '<p>' + e(u.ket) + '</p>' : '') +
+      '<div class="baris-aksi" style="margin-top:12px">' +
+      (u.wa ? '<a class="btn btn-garis btn-kecil" href="' + waLink(u.wa, 'Halo, saya mau tanya tentang ' + u.nama + '.') + '" target="_blank" rel="noopener">' + ik('wa') + 'Chat WA</a>' : '') +
+      '<button class="btn btn-garis btn-kecil" data-ubah-usaha="' + u.id + '">' + ik('sunting') + 'Ubah</button><button class="btn btn-hapus btn-kecil" data-hapus-usaha="' + u.id + '">Hapus</button></div></div></article>';
+  }
+  var usahaKlikTerpasang = false;
+  HAL.usahaPasca = function () {
+    $('[data-usaha-baru]').addEventListener('click', function () { formUsaha(); });
+    if (!usahaKlikTerpasang) { $('#isi').addEventListener('click', usahaKlik); usahaKlikTerpasang = true; }
+  };
+  function usahaKlik(ev) {
+    var u = ev.target.closest('[data-ubah-usaha]'), h = ev.target.closest('[data-hapus-usaha]');
+    if (u) { formUsaha((D.usaha || []).filter(function (x) { return x.id === u.dataset.ubahUsaha; })[0]); return; }
+    if (h) {
+      var x = (D.usaha || []).filter(function (y) { return y.id === h.dataset.hapusUsaha; })[0];
+      if (!x) return;
+      konfirmasi('Hapus "' + x.nama + '"?', 'Usaha ini akan hilang dari daftar dan direktori.', 'Hapus', function () { D.usaha = D.usaha.filter(function (y) { return y !== x; }); simpan(); render(); toast('Usaha dihapus'); });
+    }
+  }
+
+  function formUsaha(u) {
+    var baru = !u; u = u || { jenis: 'Makanan & Minuman', aktif: true };
+    modal('<form id="fUsaha"><div class="modal-kepala"><h2 id="modalJudul">' + (baru ? 'Tambah usaha' : 'Ubah usaha') + '</h2><button type="button" class="ikon-btn" data-tutup aria-label="Tutup">' + ik('tutup') + '</button></div>' +
+      bid('uNama', 'Nama usaha (wajib)', '<input id="uNama" name="nama" maxlength="90" value="' + e(u.nama) + '">') +
+      '<div class="form-grid">' + bid('uPemilik', 'Pemilik (wajib)', '<input id="uPemilik" name="pemilik" maxlength="60" value="' + e(u.pemilik) + '">') +
+      bid('uJenis', 'Jenis', '<select id="uJenis" name="jenis">' + opsi(JENIS_USAHA, u.jenis) + '</select>') + '</div>' +
+      bid('uWa', 'No WA (wajib)', '<input id="uWa" name="wa" inputmode="tel" value="' + e(u.wa) + '" placeholder="08xxxxxxxxxx">') +
+      bid('uAlamat', 'Alamat (wajib)', '<input id="uAlamat" name="alamat" maxlength="90" value="' + e(u.alamat) + '">') +
+      bid('uJam', 'Jam buka (opsional)', '<input id="uJam" name="jam" maxlength="20" value="' + e(u.jam) + '" placeholder="mis. 07:00–17:00">') +
+      bid('uKet', 'Keterangan (opsional)', '<input id="uKet" name="ket" maxlength="120" value="' + e(u.ket) + '">') +
+      '<label style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" name="aktif" style="width:20px;min-height:20px"' + (u.aktif ? ' checked' : '') + '> Usaha aktif (tampil di direktori)</label>' +
+      '<div class="modal-kaki"><button type="button" class="btn btn-garis" data-tutup>Batal</button><button class="btn" type="submit">' + ik('cek') + 'Simpan</button></div></form>', function (m) {
+      $('#fUsaha', m).addEventListener('submit', function (ev) {
+        ev.preventDefault(); var f = ev.target;
+        if (!f.nama.value.trim() || !f.pemilik.value.trim() || !waNomor(f.wa.value) || !f.alamat.value.trim()) { (!f.nama.value.trim() ? f.nama : !f.pemilik.value.trim() ? f.pemilik : !waNomor(f.wa.value) ? f.wa : f.alamat).focus(); toast('Nama, pemilik, WA, dan alamat wajib diisi', 'bahaya'); return; }
+        var data = { nama: f.nama.value.trim(), pemilik: f.pemilik.value.trim(), jenis: f.jenis.value, wa: waNomor(f.wa.value), alamat: f.alamat.value.trim(), jam: f.jam.value.trim(), ket: f.ket.value.trim(), aktif: f.aktif.checked };
+        if (baru) { data.id = idBaru('us'); data.dibuat = hariIni(); D.usaha.push(data); } else Object.assign(u, data);
+        simpan(); tutupModal(); render(); toast('Usaha tersimpan');
+      });
+    });
+  }
+
   // --- Surat pengantar
   var KEPERLUAN = ['Pembuatan / perpanjangan KTP', 'Pembuatan / perubahan KK', 'Pengurusan SKCK', 'Surat keterangan domisili', 'Surat keterangan tidak mampu (SKTM)', 'Pengantar nikah', 'Pindah domisili', 'Pengurusan akta kelahiran', 'Lainnya'];
   function semuaOrang() { var o = []; D.kk.forEach(function (k) { k.anggota.forEach(function (a, j) { o.push({ kk: k, a: a, kunci: k.id + ':' + j }); }); }); return o; }
@@ -697,6 +815,7 @@
       '<button class="btn" type="submit">' + ik('cek') + 'Simpan identitas</button></form>' +
       '<section class="kartu"><h2>Pengurus <button class="btn btn-garis btn-kecil" id="tambahPengurus">' + ik('tambah') + 'Tambah</button></h2><div id="daftarPengurus"></div><button class="btn" id="simpanPengurus" style="margin-top:12px">' + ik('cek') + 'Simpan pengurus</button></section>' +
       '</div><div class="tumpuk">' +
+      '<section class="kartu"><h2>No Telp Penting <button class="btn btn-garis btn-kecil" id="tambahTelp">' + ik('tambah') + 'Tambah nomor</button></h2><div id="daftarTelp"></div><button class="btn" id="simpanTelp" style="margin-top:12px">' + ik('cek') + 'Simpan no telp penting</button></section>' +
       '<form class="kartu" id="fTampilan"><h2>Tampilan</h2>' + bid('tNama', 'Nama di kop & judul', '<input id="tNama" name="nama" value="' + e(t.nama) + '">') +
       '<div class="form-grid">' + bid('tUtama', 'Warna utama', '<input id="tUtama" name="utama" type="color" value="' + hex(t.utama) + '">', 'Pilih warna cukup gelap agar teks putih terbaca') + bid('tAksen', 'Warna aksen', '<input id="tAksen" name="aksen" type="color" value="' + hex(t.aksen) + '">') +
       bid('tFont', 'Huruf', '<select id="tFont" name="font">' + opsi(FONT, t.font) + '</select>') + bid('tMode', 'Mode', '<select id="tMode" name="mode"><option value="auto"' + (t.mode === 'auto' ? ' selected' : '') + '>Ikuti perangkat</option><option value="terang"' + (t.mode === 'terang' ? ' selected' : '') + '>Terang</option><option value="gelap"' + (t.mode === 'gelap' ? ' selected' : '') + '>Gelap</option></select>') + '</div>' +
@@ -718,8 +837,27 @@
     }).join('') || kosong('Belum ada pengurus.', 'warga');
   }
   function bacaPengurus() { return $$('[data-pengurus]').map(function (b) { return { jabatan: $('[name=jabatan]', b).value.trim(), nama: $('[name=nama]', b).value.trim(), wa: waNomor($('[name=wa]', b).value) }; }); }
+  // --- No Telp Penting di Pengaturan (meniru pola Pengurus; data dari D.telpPenting)
+  // telpIdTersimpan: id baris yang SUDAH tersimpan (diisi saat Pengaturan dibuka,
+  // diperbarui hanya di handler Simpan) — penentu konfirmasi hapus.
+  var telpIdTersimpan = {};
+  function gambarTelp() {
+    $('#daftarTelp').innerHTML = (D.telpPenting || []).map(function (t, i) {
+      return '<div class="anggota-baris" data-telp data-telp-id="' + e(t.id || '') + '"><div class="kepala-baris"><span>' + e(t.nama || 'Nomor baru') + '</span><button type="button" class="btn btn-hapus btn-kecil" data-hapus-telp="' + i + '">Hapus</button></div><div class="form-grid">' +
+        bid('tn' + i, 'Nama layanan', '<input id="tn' + i + '" name="nama" value="' + e(t.nama) + '">') + bid('tno' + i, 'Nomor', '<input id="tno' + i + '" name="nomor" inputmode="tel" value="' + e(t.nomor) + '">') + bid('tk' + i, 'Keterangan', '<input id="tk' + i + '" name="ket" value="' + e(t.ket) + '">') +
+        bid('tj' + i, 'Jenis', '<select id="tj' + i + '" name="jenis"><option value="nasional"' + (t.jenis === 'nasional' ? ' selected' : '') + '>Nasional</option><option value="lokal"' + (t.jenis === 'lokal' ? ' selected' : '') + '>Lokal</option></select>') + '</div></div>';
+    }).join('') || kosong('Belum ada nomor.', 'telepon');
+  }
+  function bacaTelp() {
+    return $$('[data-telp]').map(function (b) {
+      return { id: b.dataset.telpId || idBaru('tp'), nama: $('[name=nama]', b).value.trim(), nomor: String($('[name=nomor]', b).value).replace(/\D/g, ''), ket: $('[name=ket]', b).value.trim(), jenis: $('[name=jenis]', b).value === 'lokal' ? 'lokal' : 'nasional' };
+    });
+  }
   HAL.pengaturanPasca = function () {
     gambarPengurus();
+    gambarTelp();
+    telpIdTersimpan = {};
+    (D.telpPenting || []).forEach(function (t) { if (t.id) telpIdTersimpan[t.id] = true; });
     $('#fIdentitas').addEventListener('submit', function (ev) {
       ev.preventDefault(); var f = ev.target;
       ['rt', 'rw', 'kelurahan', 'kecamatan', 'kota', 'provinsi', 'alamat', 'iuranMulai', 'caraBayar'].forEach(function (k) { D.pengaturan[k] = f[k].value.trim(); });
@@ -729,6 +867,20 @@
     $('#tambahPengurus').addEventListener('click', function () { D.pengurus = bacaPengurus(); D.pengurus.push({ jabatan: '', nama: '', wa: '' }); gambarPengurus(); $('#daftarPengurus [data-pengurus]:last-child input').focus(); });
     $('#daftarPengurus').addEventListener('click', function (ev) { var b = ev.target.closest('[data-hapus-pengurus]'); if (b) { D.pengurus = bacaPengurus(); D.pengurus.splice(+b.dataset.hapusPengurus, 1); gambarPengurus(); } });
     $('#simpanPengurus').addEventListener('click', function () { D.pengurus = bacaPengurus().filter(function (p) { return p.nama; }); simpan(); gambarPengurus(); toast('Pengurus disimpan'); });
+    $('#tambahTelp').addEventListener('click', function () { D.telpPenting = bacaTelp(); D.telpPenting.push({ id: idBaru('tp'), nama: '', nomor: '', ket: '', jenis: 'lokal' }); gambarTelp(); $('#daftarTelp [data-telp]:last-child input').focus(); });
+    $('#daftarTelp').addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-hapus-telp]'); if (!b) return;
+      var baris = b.closest('[data-telp]');
+      var tersimpan = baris && baris.dataset.telpId && telpIdTersimpan[baris.dataset.telpId];
+      var hapus = function () { D.telpPenting = bacaTelp(); D.telpPenting.splice(+b.dataset.hapusTelp, 1); gambarTelp(); };
+      if (tersimpan) konfirmasi('Hapus nomor ini?', 'Nomor "' + ($('[name=nama]', baris).value.trim() || 'tanpa nama') + '" akan dihapus dari daftar. Perubahan baru tersimpan sesudah Anda menekan "Simpan no telp penting".', 'Hapus', hapus);
+      else hapus();
+    });
+    $('#simpanTelp').addEventListener('click', function () {
+      var daftar = bacaTelp().filter(function (t) { return t.nama && t.nomor; });
+      if (!daftar.length) { toast('Isi minimal 1 nomor', 'bahaya'); return; }
+      D.telpPenting = daftar; telpIdTersimpan = {}; daftar.forEach(function (t) { telpIdTersimpan[t.id] = true; }); simpan(); gambarTelp(); toast('No telp penting disimpan');
+    });
 
     var fT = $('#fTampilan');
     function bacaT() { return { nama: fT.nama.value.trim() || TEMA.nama, utama: fT.utama.value, aksen: fT.aksen.value, font: fT.font.value, mode: fT.mode.value, radius: fT.radius.value }; }

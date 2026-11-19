@@ -1,6 +1,8 @@
 # PRD · Ubah template Website RT/RW: Warga, Iuran, Kas & Surat "portal-rtrw"
 
-Versi 1 · 18 Nov 2026 · Dibuat dengan Pembuat PRD (malikisaputra.biz.id/prd)
+Versi 2 · 19 Nov 2026 · Revisi dari v1 atas perintah Masdan 19 Nov 2026 19:28 WIB (PRD v1 disimpan di PRD-v1.md)
+
+Perubahan v1 ke v2: fitur 9 List Usaha dikoreksi dari "Tetap berfungsi" menjadi fitur baru; ditambah fitur 10 No Telp Penting sebagai fitur baru; lingkup diperluas hanya untuk 2 fitur baru ini (logika app.js dan format data boleh diubah untuk keduanya, dengan migrasi); T2 ditahan dulu, 2 fitur baru didahulukan, baru dirapikan sesudahnya.
 
 ## 1. Ringkasan
 Ubah tampilan template "Website RT/RW: Warga, Iuran, Kas & Surat" agar sesuai usahaku [portal-rtrw], tanpa merusak fitur yang sudah ada.
@@ -18,11 +20,13 @@ Ubah tampilan template "Website RT/RW: Warga, Iuran, Kas & Surat" agar sesuai us
 ## 4. Lingkup
 **Masuk:**
 - Mengubah tampilan: index.html, style.css, tema.css
+- Menambah 2 fitur baru di halaman publik (v2): List Usaha dan No Telp Penting
+- Mengubah logika app.js dan format data hanya untuk 2 fitur baru itu, dengan migrasi supaya data lama tidak rusak
 
 **Tidak masuk (jangan dibuat):**
-- Mengubah logika/JavaScript dan format data
-- Menambah fitur baru
-- Mengubah berkas terkunci: app.js, format data & kunci localStorage
+- Mengubah logika/JavaScript dan format data di luar 2 fitur baru v2
+- Menambah fitur baru lain di luar 2 fitur v2
+- Menghapus kredit Template oleh Maliki Saputra
 
 ## 5. Fitur / layar (urut dari awal)
 | # | Fitur | Yang bisa dilakukan pengguna | Teks persis |
@@ -35,13 +39,14 @@ Ubah tampilan template "Website RT/RW: Warga, Iuran, Kas & Surat" agar sesuai us
 | 6 | Kas RT | Tetap berfungsi; tampilannya mengikuti gaya baru | (tulis singkat, netral, tanpa klaim) |
 | 7 | Surat pengantar A4 dengan kop & nomor otomatis | Tetap berfungsi; tampilannya mengikuti gaya baru | (tulis singkat, netral, tanpa klaim) |
 | 8 | Ekspor/impor CSV + cadangan JSON | Tetap berfungsi; tampilannya mengikuti gaya baru | (tulis singkat, netral, tanpa klaim) |
-| 9 | List Usaha | Tetap berfungsi; tampilannya mengikuti gaya baru | (tulis singkat, netral, tanpa klaim) |
+| 9 | List Usaha | Fitur baru (v2): tombol di area "Yang bisa Anda lakukan", diklik masuk ke direktori usaha; data dummy dulu; hanya usaha warga lingkungan ini (makanan, jasa, produk, dan lain-lain); dikelola pengurus lewat Panel Pengurus | (tulis singkat, netral, tanpa klaim) |
+| 10 | No Telp Penting | Fitur baru (v2): tampil di halaman publik, terlihat jelas, nomor bisa ditekan untuk menelepon (tel:); nomor nasional 112, 110, 113, 118/119, 115, 123; nomor lokal [ISI: nomor dari Masdan] | (tulis singkat, netral, tanpa klaim) |
 
 ## 6. Arah desain
 - **Pola tata letak (Hangat ramah HP):** tab bawah seperti aplikasi HP, kartu besar membulat, ikon garis, tombol tambah mengambang.
 - **Nuansa:** Berani: kontras tinggi, blok warna penuh, judul sangat besar, sudut tegas.
 - **Tata letak:** Tab bawah seperti aplikasi HP.
-- **Warna & font:** [ISI: kode warna utama, aksen, dan font]
+- **Warna & font:** warna bawaan template dulu atas perintah Masdan 19 Nov 2026 17:08 WIB: utama #2c6e49, aksen #e2723b, font Nunito, radius 18px
 - **Tipografi:** skala ukuran jelas (48/32/20/16 px), isi 16–18 px, tinggi baris 1.5.
 - **Animasi:**
   - elemen muncul (fade + naik 16 px, 400–600 ms) saat masuk layar, pakai IntersectionObserver.
@@ -66,7 +71,10 @@ Ubah tampilan template "Website RT/RW: Warga, Iuran, Kas & Surat" agar sesuai us
 3. HP 375 px tanpa scroll samping
 
 ## 8. Fakta yang boleh dipakai
-Belum ada. Bila butuh kontak, harga, atau angka, tulis tanda [ISI: …] dan jangan mengarang.
+- Nomor darurat nasional Indonesia (terverifikasi dari beberapa sumber, 19 Nov 2026): 112 darurat terpadu, 110 polisi, 113 pemadam kebakaran, 118 dan 119 ambulans, 115 Basarnas, 123 PLN.
+- Nomor lokal (Polsek, Puskesmas, RS terdekat, dan lain-lain): [ISI: nomor dari Masdan], jangan mengarang.
+- Data usaha asli belum ada; pakai data dummy dulu yang jelas ditandai contoh.
+- Bila butuh kontak, harga, atau angka lain, tulis tanda [ISI: …] dan jangan mengarang.
 
 ## 9. Larangan (penting)
 - Jangan menambah angka (jumlah klien, tahun, rating, statistik) yang tidak tertulis di PRD.
