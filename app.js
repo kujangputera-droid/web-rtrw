@@ -349,7 +349,6 @@
       var lokal = t.jenis === 'lokal';
       return '<article class="kartu telp-kartu ' + (lokal ? 'telp-lokal' : 'telp-nasional') + '"><span class="lencana' + (lokal ? ' aksen' : '') + '">' + (lokal ? 'Lokal' : 'Nasional') + '</span><h3>' + e(t.nama) + '</h3>' +
         '<div class="telp-nomor">' + e(t.nomor) + '</div>' +
-        (t.ket ? '<p>' + e(t.ket) + '</p>' : '') +
         '<a class="btn telp-tombol" href="tel:' + e(tel) + '" aria-label="Telepon ' + e(t.nama) + ' ' + e(t.nomor) + '">' + ik('telepon') + 'Telepon</a></article>';
     }).join('');
     return '<section class="telp-penting" id="telp-penting" aria-labelledby="judulTelp"><div class="judul-baris"><h2 id="judulTelp">No Telp Penting</h2><span class="judul-sub">Ketuk nomornya untuk langsung menelepon</span></div>' +
