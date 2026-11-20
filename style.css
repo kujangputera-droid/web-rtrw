@@ -576,3 +576,58 @@ html.mode-pilih [data-pilih-hover] { outline: 2px solid var(--tema-aksen) !impor
 @media (min-width: 861px) {
   .pahlawan, .langkah-wadah, .telp-penting, .publik-grid, .galeri-wadah { margin-bottom: 96px; }
 }
+
+/* T3: rapikan Panel Pengurus — seirama gaya baru T2, tata letak beda dari
+   halaman publik (bukan monoton). Publik: hero blok warna + judul bilah
+   8px kiri + nav bawah 4 tautan. Panel: kartu sapaan jadi pita blok warna
+   penuh (horizontal, tanpa ilustrasi), sidebar laptop jadi bidang kerja
+   bertinta utama, judul halaman panel bergaris bawah (bukan bilah kiri),
+   nav bawah panel 7 tombol dengan cip aktif hijau (bukan hitam).
+   Hanya style.css; tanpa ubah app.js/data.js/tema.js, tanpa ubah token,
+   tanpa ubah logika/PIN/menu; warna baru hanya color-mix dari token.
+   Kontras (terang/gelap, ambang AA 4,5:1, dihitung skrip): putih di atas
+   blok utama 92% = 5,16:1 / 6,62:1 (angka yang sama dengan hero T2-2,
+   campuran bloknya sama) — teks kecil sapaan juga putih penuh supaya
+   tetap lolos AA (campuran putih 88% hanya 4,42:1 di terang, di bawah
+   ambang, jadi tidak dipakai) — --utama-teks di atas latar nav (label
+   aktif nav bawah HP) = 7,65:1 / 9,19:1 (angka T2-A3). Cip ikon stat memakai campuran yang sama dengan
+   cip ikon langkah T2-3, jadi angka kontrasnya sama (hijau 5,24/6,43 —
+   oranye 6,40/5,20 — kuning 5,50/3,56 — ungu 3,78/4,00, ambang grafis 3:1).
+   Tanpa animasi baru; hover lama sudah dimatikan blok reduced-motion. */
+/* T3-1: kartu sapaan jadi pita blok warna utama (pola yang sama dengan
+   hero T2-2: tombol putih di atas hijau, tombol garis transparan bergaris
+   putih). Lingkaran hias ::before yang tadinya kuning pucat jadi putih
+   lembut supaya tetap terlihat di atas hijau. */
+body.panel .sapa-kartu { background: color-mix(in srgb, var(--tema-utama) 92%, var(--permukaan)); border: 1px solid color-mix(in srgb, var(--pada-utama) 65%, transparent); color: var(--pada-utama); box-shadow: var(--bayang); }
+body.panel .sapa-kartu::before { background: color-mix(in srgb, var(--pada-utama) 14%, transparent); }
+body.panel .sapa-kartu small, body.panel .sapa-kartu h1, body.panel .sapa-kartu p { color: var(--pada-utama); }
+body.panel .sapa-kartu .btn { background: var(--pada-utama); color: var(--utama); border-color: transparent; box-shadow: none; }
+body.panel .sapa-kartu .btn:hover { background: color-mix(in srgb, var(--pada-utama) 88%, transparent); box-shadow: none; }
+body.panel .sapa-kartu .btn-garis { background: transparent; color: var(--pada-utama); border-color: color-mix(in srgb, var(--pada-utama) 65%, transparent); box-shadow: none; }
+body.panel .sapa-kartu .btn-garis:hover { background: transparent; border-color: var(--pada-utama); box-shadow: none; }
+body.panel .sapa-kartu .btn:focus-visible, body.panel .sapa-kartu .btn-garis:focus-visible { outline-color: var(--pada-utama); }
+/* T3-2: sidebar laptop (≥861px) jadi bidang kerja bertinta utama, dan
+   menu aktif jadi isi warna utama + teks putih (sebelumnya pil hitam).
+   Titik aksen di menu aktif jadi putih supaya terbaca di atas hijau. */
+body.panel .samping { background: var(--utama-latar); border-right-color: var(--utama-garis); }
+body.panel .samping .nav-item[aria-current="page"] { background: var(--utama); color: var(--pada-utama); }
+body.panel .samping .nav-item[aria-current="page"]::before { background: var(--pada-utama); }
+/* T3-3: judul halaman panel (kepalaHal, hanya dipakai di panel) bergaris
+   bawah tipis — beda dari judul publik yang pakai bilah 8px kiri.
+   Teks subjudul diperkuat ke 82% (pola yang sama dengan T2-4). */
+body.panel .kepala-hal { border-bottom: 1px solid var(--garis); padding-bottom: 14px; }
+body.panel .kepala-hal p { color: color-mix(in srgb, var(--teks) 82%, transparent); }
+/* T3-4: cip ikon kartu stat panel bertinta per varian pastel — campuran
+   yang sama dengan cip ikon langkah T2-3, tanpa kelas pastel baru. */
+body.panel .kartu.stat.p-hijau .label i { background: color-mix(in srgb, var(--tema-utama) 30%, var(--permukaan)); color: var(--utama-teks); }
+body.panel .kartu.stat.p-oranye .label i { background: color-mix(in srgb, var(--tema-aksen) 32%, var(--permukaan)); color: var(--aksen-teks); }
+body.panel .kartu.stat.p-kuning .label i { background: color-mix(in srgb, #f4c443 50%, var(--permukaan)); color: color-mix(in srgb, #f4c443 30%, var(--teks)); }
+body.panel .kartu.stat.p-ungu .label i { background: color-mix(in srgb, #8f7ff0 45%, var(--permukaan)); color: color-mix(in srgb, #8f7ff0 55%, var(--teks)); }
+/* T3-5: nav bawah panel HP (≤860px) — menu aktif: label warna utama dan
+   cip ikon hijau + ikon putih (sebelumnya cip hitam + label nav-teks).
+   Hanya warna cip dan label; ukuran, posisi, dan pemisah dari nav bawah
+   publik (.bawah-publik, body.panel display none) tidak berubah. */
+@media (max-width: 860px) {
+  body.panel .bawah .nav-item[aria-current="page"] { color: var(--utama-teks); }
+  body.panel .bawah .nav-item[aria-current="page"] svg { background: var(--utama); color: var(--pada-utama); }
+}
