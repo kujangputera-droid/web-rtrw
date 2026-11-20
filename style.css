@@ -285,12 +285,16 @@ td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; }
 .pahlawan .btn-garis:hover { background: transparent; border-color: var(--pada-utama); box-shadow: none; }
 .pahlawan .btn:focus-visible, .pahlawan .btn-garis:focus-visible { outline-color: var(--pada-utama); }
 .pahlawan-gambar { align-self: end; margin-right: calc(-1 * clamp(20px, 4vw, 48px)); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%); mask-image: linear-gradient(90deg, transparent, #000 10%); }
-/* Label Perumahan: ukuran fluid (bukan 12px tetap) supaya proporsional terhadap
-   h1 48px di semua lebar; jarak bawah fluid mengikuti skala padding hero;
-   margin kanan = padding horizontal hero, jadi tepi kanan label sejajar dengan
-   tepi konten — sama seperti eyebrow kecil di sisi kiri. Huruf kapital,
-   spasi, dan warna putih di atas hijau tidak berubah (kontras AA tetap). */
-.pahlawan-perumahan { text-align: right; font-size: clamp(12px, .45vw + 10px, 16px); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--pada-utama); margin-bottom: clamp(8px, 1.5vw, 16px); margin-right: clamp(20px, 4vw, 48px); }
+/* Label Perumahan (hierarki statis, tanpa gerakan): lockup dua baris rata kanan.
+   Baris atas "Perumahan" kecil (sekitar setengah baris besar, spasi huruf lebar);
+   baris bawah "Bukit Asri" besar fluid 18-28px, tebal 900, dengan garis bawah
+   aksen seperti highlight h1 (satu sentuhan elegan, pola .pahlawan h1 em).
+   Margin kanan = padding horizontal hero, jadi tepi kanan label sejajar dengan
+   tepi konten — sama seperti eyebrow kecil di sisi kiri. Warna putih di atas
+   hijau tidak berubah (kontras AA tetap). */
+.pahlawan-perumahan { text-align: right; color: var(--pada-utama); line-height: 1.15; margin-bottom: clamp(8px, 1.5vw, 16px); margin-right: clamp(20px, 4vw, 48px); }
+.pahlawan-perumahan .baris-kecil { display: block; font-size: clamp(10px, .6vw + 8px, 14px); font-weight: 800; letter-spacing: .28em; text-transform: uppercase; margin-bottom: 4px; }
+.pahlawan-perumahan .baris-besar { display: inline-block; font-size: clamp(18px, 1.2vw + 14px, 28px); font-weight: 900; letter-spacing: -.02em; line-height: 1.04; background: linear-gradient(transparent 62%, color-mix(in srgb, var(--tema-aksen) 32%, transparent) 62% 90%, transparent 90%); }
 .hitung-mundur { display: inline-flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--permukaan); color: var(--teks); border: 1px solid var(--garis); padding: 8px 16px 8px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 700; margin-bottom: 20px; box-shadow: var(--bayang); max-width: 100%; }
 .hitung-mundur b { background: var(--aksen-latar); color: var(--aksen-teks); padding: 2px 10px; border-radius: 99px; white-space: nowrap; }
 .titik { width: 9px; height: 9px; border-radius: 50%; background: var(--aksen); flex: none; animation: denyut 1.8s 3; box-shadow: 0 0 0 0 color-mix(in srgb, var(--tema-aksen) 50%, transparent); }

@@ -323,7 +323,7 @@
       '<h1>Lingkungan yang guyub dimulai dari <em>satu sapaan.</em></h1>' +
       '<p>Pengumuman, jadwal kegiatan, dan kontak pengurus <span data-tema-nama>' + e(namaUsaha()) + '</span>, semuanya di satu papan.</p>' + mundur +
       '<div class="baris-aksi"><a class="btn" href="#pengumuman">' + ik('info') + 'Lihat pengumuman</a><a class="btn btn-garis" href="#kontak">' + ik('wa') + 'Kontak pengurus</a></div></div>' +
-      '<div class="pahlawan-gambar"><div class="pahlawan-perumahan">Perumahan Bukit Asri</div>' + (G.hero ? '<img class="hero-foto" src="' + e(G.hero) + '" alt="Foto lingkungan ' + e(namaRT()) + '" onerror="this.outerHTML=window.__ilustrasi">' : ilustrasiKampung()) + '</div></section>' +
+      '<div class="pahlawan-gambar"><div class="pahlawan-perumahan"><span class="sr">Perumahan Bukit Asri</span><span class="baris-kecil" aria-hidden="true">Perumahan</span><span class="baris-besar" aria-hidden="true">Bukit Asri</span></div>' + (G.hero ? '<img class="hero-foto" src="' + e(G.hero) + '" alt="Foto lingkungan ' + e(namaRT()) + '" onerror="this.outerHTML=window.__ilustrasi">' : ilustrasiKampung()) + '</div></section>' +
       '<section class="langkah-wadah" aria-labelledby="judulLangkah"><div class="judul-baris"><h2 id="judulLangkah">Yang bisa Anda lakukan</h2><span class="judul-sub">' + langkah.length + ' hal penting untuk warga</span></div>' +
       '<ol class="langkah-grid stagger">' + langkah.map(function (l, i) {
         return '<li class="langkah p-' + l.w + '"><span class="langkah-no">0' + (i + 1) + '</span><span class="langkah-ikon">' + ik(l.ik) + '</span><h3>' + l.j + '</h3><p>' + l.d + '</p>' +
