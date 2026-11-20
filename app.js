@@ -936,7 +936,7 @@
     });
     $('#impWarga').addEventListener('change', function () { bacaBerkas(this, imporWarga); });
     $('#impKas').addEventListener('change', function () { bacaBerkas(this, imporKas); });
-    $('#isiContoh').addEventListener('click', function () { konfirmasi('Muat data contoh?', 'Semua data sekarang diganti data contoh RT 05/RW 02. Unduh cadangan dulu kalau perlu.', 'Muat contoh', function () { var pin = D.pengaturan.pin; D = migrasi(window.buatDataContoh()); D.pengaturan.pin = pin; simpan(); render(); toast('Data contoh dimuat'); }); });
+    $('#isiContoh').addEventListener('click', function () { konfirmasi('Muat data contoh?', 'Semua data sekarang diganti data contoh RT 07/RW 13. Unduh cadangan dulu kalau perlu.', 'Muat contoh', function () { var pin = D.pengaturan.pin; D = migrasi(window.buatDataContoh()); D.pengaturan.pin = pin; simpan(); render(); toast('Data contoh dimuat'); }); });
     $('#kosongkan').addEventListener('click', function () {
       konfirmasi('Kosongkan semua data?', 'Data warga, iuran, kas, info, dan surat dihapus dari perangkat ini. Identitas RT & PIN tetap. Tindakan ini tidak bisa dibatalkan.', 'Kosongkan', function () {
         D = migrasi({ pengaturan: D.pengaturan, pengurus: D.pengurus }); simpan(); render(); toast('Semua data dikosongkan');
