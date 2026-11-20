@@ -669,3 +669,63 @@ body.panel .kartu.stat.p-ungu .label i { background: color-mix(in srgb, #8f7ff0 
    .anggota-baris juga dipakai form pengurus dan No Telp Penting. */
 #wadahAnggota .anggota-baris[data-anggota]:first-child { border-color: var(--utama-garis); }
 #wadahAnggota .anggota-baris[data-anggota]:first-child .kepala-baris span { color: var(--utama-teks); }
+
+/* BATCH T5-T10 (perintah Masdan 20 Nov 2026 11:24 WIB: semua tugas tampilan/
+   gaya tanpa ubah logika dikerjakan sekaligus, satu batch): tiap bagian punya
+   pola beda yang jelas, tetap seirama gaya baru T2/T3/T4. Hanya style.css;
+   tanpa ubah app.js/data.js/tema.js, tanpa ubah token, tanpa ubah logika.
+   Warna baru hanya color-mix dari token. Kontras (terang/gelap, ambang AA
+   4,5:1, dihitung skrip): aksen-teks di atas permukaan 8,96:1 / 8,57:1 —
+   utama-teks di atas utama-latar 7,00:1 / 7,05:1 — putih di atas utama penuh
+   6,12:1 — teks di atas utama-latar 12,20:1 / 11,87:1 — teks di atas tint
+   5% 13,29:1 / 13,49:1. Tanpa animasi baru; hover lama sudah dimatikan blok
+   reduced-motion. */
+/* T5: Iuran per KK — pola "papan skor": kartu ringkasan jadi strip bertinta
+   utama, navigasi bulan jadi pil, tombol lunas yang belum bayar bertepi
+   aksen (teks aksen-teks, lolos AA), chip saring aktif bertinta (beda dari
+   chip aktif solid di direktori warga T4), kepala tabel rekap bertinta. */
+.kartu:has(.ringkas-iuran) { background: var(--utama-latar); border-color: var(--utama-garis); }
+.bulan-nav { background: var(--permukaan); border: 1px solid var(--garis); border-radius: 999px; padding: 4px 6px; }
+.bulan-nav b { font-size: 17px; }
+.tombol-lunas:not([aria-pressed="true"]) { border-color: color-mix(in srgb, var(--tema-aksen) 55%, transparent); color: var(--aksen-teks); }
+#isiIuran .alat .chip[aria-pressed="true"] { background: var(--utama-latar); color: var(--utama-teks); border-color: var(--utama-garis); }
+#isiIuran .tabel-wadah th { background: var(--utama-latar); color: var(--utama-teks); }
+/* T6: Pengingat iuran via WhatsApp — pola "aksi WA bertepi hijau": tombol
+   Bagikan ke WA ([data-bagikan], kartu pengumuman) dan tombol Salin daftar
+   belum bayar (#salinRekapWA, ringkasan iuran) bertepi utama + teks
+   utama-teks, beda dari btn-garis biasa. Tombol WA per KK (.btn-wa) tidak
+   diubah: sudah isi hijau penuh #0b7a3e + ikon putih sejak template. */
+[data-bagikan] { border-color: color-mix(in srgb, var(--tema-utama) 55%, transparent); color: var(--utama-teks); }
+#salinRekapWA { border-color: color-mix(in srgb, var(--tema-utama) 55%, transparent); color: var(--utama-teks); }
+/* T7: Kas RT — pola "buku kas": chip saring aktif bertinta (sama bahasanya
+   dengan chip saring iuran T5), tabel daftar kas (#daftarKas) berbingkai
+   utama-garis dengan kepala tabel bertinta. Grafik (.grafik/.legenda) tidak
+   diubah: komponen yang sama dipakai di ringkas, jadi aturannya akan bocor
+   ke sana bila diubah di sini. */
+[data-kas-saring][aria-pressed="true"] { background: var(--utama-latar); color: var(--utama-teks); border-color: var(--utama-garis); }
+#daftarKas .tabel-wadah { border-color: var(--utama-garis); }
+#daftarKas .tabel-wadah th { background: var(--utama-latar); color: var(--utama-teks); }
+/* T8: Surat pengantar A4 — pola "dokumen": form #fSurat bertepi atas ganda
+   (double, beda dari tepi atas solid kartu KK T4), nomor otomatis
+   berikutnya diberi latar bertinta supaya terbaca, bingkai pratinjau surat
+   bertinta + latar 6%. Aturan @media print tidak diubah: cetak sudah benar
+   (hanya #cetak yang tampil, A4, kop hitam formal); .surat di #cetak tidak
+   punya bayangan, jadi tidak ada yang perlu dibersihkan. */
+#fSurat { border-top: 3px double var(--utama-garis); }
+#fSurat .mono { background: var(--utama-latar); color: var(--utama-teks); padding: 2px 8px; border-radius: 6px; }
+.pratinjau-surat { border-color: var(--utama-garis); background: color-mix(in srgb, var(--tema-utama) 6%, var(--permukaan-2)); }
+/* T9: Ekspor/impor CSV + cadangan JSON — pola "brankas": kartu Data &
+   cadangan (dicakup :has(#cadangan)) bertinta 5% + bingkai utama-garis, dan
+   baris aksi berbahaya (Muat data contoh / Kosongkan semua data) dipisah
+   garis atas supaya tidak tertukar dengan baris ekspor/impor. */
+section.kartu:has(#cadangan) { border-color: var(--utama-garis); background: color-mix(in srgb, var(--tema-utama) 5%, var(--permukaan)); }
+section.kartu:has(#cadangan) .baris-aksi:last-child { border-top: 1px solid var(--garis); padding-top: 12px; }
+/* T10: List Usaha — pola "etalase": kartu usaha publik dicakup
+   article[data-jenis] (hanya kartuUsahaPublik yang punya atribut itu;
+   kartu usaha panel dan kartu pengumuman tidak, jadi tidak bocor) beraksen
+   kiri utama 4px; chip saring jenis aktif isi utama penuh (bahasa direktori
+   yang sama dengan warga T4). Daftar usaha panel tidak diberi aturan:
+   markupnya .kartu.info-kartu yang sama dengan kartu pengumuman, jadi
+   tidak bisa dicakup tanpa app.js. */
+.tumpuk article[data-jenis] { border-left: 4px solid var(--utama); }
+[data-filter-jenis][aria-pressed="true"] { background: var(--utama); border-color: var(--utama); color: var(--pada-utama); }
