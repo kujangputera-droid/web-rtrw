@@ -738,3 +738,23 @@ section.kartu:has(#cadangan) .baris-aksi:last-child { border-top: 1px solid var(
    tidak bisa dicakup tanpa app.js. */
 .tumpuk article[data-jenis] { border-left: 4px solid var(--utama); }
 [data-filter-jenis][aria-pressed="true"] { background: var(--utama); border-color: var(--utama); color: var(--pada-utama); }
+/* T11: Animasi & momen pembeda (PRD bagian 6) — reveal saat masuk layar
+   (fade + naik 16px, 500ms, IntersectionObserver di app.js) dan hover
+   angkat kartu/tombol 2-4px + bayangan (200ms). Kelas 'muncul' hanya
+   ditambah lewat JS, jadi tanpa JS halaman tetap tampil biasa; transisi
+   hanya di .tampak supaya tidak ada kedip saat kelas sembunyi dipasang.
+   .kartu dikecualikan .kk-kartu/.info-kartu supaya hover khusus mereka
+   (-4px/-2px, sudah sesuai PRD) tidak tertimpa aturan generik ini:
+   spesifisitas sama, aturan yang belakangan menang. .langkah bukan .kartu,
+   jadi hover -4px-nya aman. :not(:active) pada .btn/.chip menjaga umpan
+   balik tekan scale(.96)/scale(.95) yang sudah ada. */
+.muncul { opacity: 0; transform: translateY(16px); }
+.muncul.tampak { opacity: 1; transform: translateY(0); transition: opacity 500ms var(--lentur), transform 500ms var(--lentur); }
+.kartu:not(.kk-kartu):not(.info-kartu) { transition: transform 200ms var(--lentur), box-shadow 200ms var(--lentur), background-color var(--sedang), color var(--sedang), border-color var(--sedang); }
+.kartu:not(.kk-kartu):not(.info-kartu):hover { transform: translateY(-3px); box-shadow: var(--bayang-angkat); }
+.btn:hover:not(:active) { transform: translateY(-2px); }
+.chip:hover:not(:active) { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .muncul { opacity: 1 !important; transform: none !important; }
+  .kartu:hover, .btn:hover, .chip:hover { transform: none !important; }
+}

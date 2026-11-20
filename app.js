@@ -240,6 +240,7 @@
     var isi = $('#isi');
     isi.innerHTML = '<div class="halaman">' + (panel ? HAL[r.hal](r.arg) : r.hal === 'usaha' ? halUsaha() : halPublik()) + '</div>';
     stagger(isi);
+    amatiMuncul(isi);
     tandaiBagian();
     if (bagianSorot) sorot(bagianSorot);
     if (panel) { if (HAL[r.hal + 'Pasca']) HAL[r.hal + 'Pasca'](r.arg); } else if (r.hal === 'usaha') { halUsahaPasca(); }
@@ -256,6 +257,24 @@
     $('#navBawah').innerHTML = html;
   }
   function stagger(root) { $$('.stagger', root).forEach(function (g) { Array.prototype.forEach.call(g.children, function (c, i) { c.style.setProperty('--i', Math.min(i, 14)); }); }); }
+  /* T11: reveal saat masuk layar — satu observer, sekali tampil saja.
+     Kelas 'muncul' hanya ditambah di sini (bukan di string HTML), supaya
+     tanpa JS / tanpa IO / RM aktif halaman tetap tampil biasa. Anak
+     .stagger tidak jadi target: mereka sudah dianimasikan .stagger > *. */
+  var TARGET_MUNCUL = '#isi .pahlawan, #isi .langkah-wadah, #isi .telp-penting, #isi .galeri-wadah, #isi .sapa-kartu, #isi .kepala-hal, #isi .publik-grid section, #isi .halaman > .grid, #isi .halaman > section.kartu, #isi .grid > section.kartu';
+  var pengamatMuncul = null;
+  function amatiMuncul(root) {
+    if (RM.matches || !('IntersectionObserver' in window)) return;
+    if (pengamatMuncul) pengamatMuncul.disconnect();
+    pengamatMuncul = new IntersectionObserver(function (masuk) {
+      masuk.forEach(function (entri) {
+        if (!entri.isIntersecting) return;
+        entri.target.classList.add('tampak');
+        pengamatMuncul.unobserve(entri.target);
+      });
+    }, { root: null, rootMargin: '0px 0px -48px 0px', threshold: 0.1 });
+    $$(TARGET_MUNCUL, root).forEach(function (el) { el.classList.add('muncul'); pengamatMuncul.observe(el); });
+  }
   function hitungNaik(root) {
     $$('[data-hitung]', root).forEach(function (el) {
       var target = Number(el.getAttribute('data-hitung')), uang = el.hasAttribute('data-rp');
