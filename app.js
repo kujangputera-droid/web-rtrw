@@ -1041,6 +1041,7 @@
     else if (terbuka) location.hash = '#/panel/ringkas'; else bukaPin('ringkas');
   });
   window.addEventListener('hashchange', function () { if (modalEl.open) tutupModal(); render(); });
+  $('.bawah-publik a[href="#/"]').addEventListener('click', function (ev) { if (location.hash === '#/' || !location.hash) { ev.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
   window.addEventListener('afterprint', function () { $('#cetak').innerHTML = ''; });
   if (DEMO && !location.hash) history.replaceState(null, '', '#/panel/ringkas');
   render();
