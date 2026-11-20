@@ -419,10 +419,10 @@ html.mode-pilih [data-pilih-hover] { outline: 2px solid var(--tema-aksen) !impor
 .merek-logo .merek-gambar { background: var(--permukaan); }
 .hero-foto { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--r-besar) var(--r-besar) 0 0; }
 .galeri-wadah { margin-top: 36px; }
-/* No Telp Penting (R-T1): kartu persegi kecil, tanpa keterangan, tombol tel di bawah nomor */
+/* No Telp Penting (R-T1): kartu kecil rapat, tanpa keterangan, tombol tel di bawah nomor */
 .telp-penting { margin-bottom: 36px; }
 .telp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 12px; }
-.telp-kartu { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 1 / 1; padding: 10px; text-align: center; }
+.telp-kartu { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 10px; text-align: center; }
 .telp-kartu h3 { font-size: 13px; font-weight: 800; margin: 0; line-height: 1.15; }
 .telp-nomor { font-size: 27px; font-weight: 900; line-height: 1.1; color: var(--utama-teks); font-variant-numeric: tabular-nums; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .telp-tombol { align-self: stretch; min-height: 44px; }
