@@ -363,14 +363,26 @@
   }
 
   // --- Direktori usaha warga (halaman publik, bukan panel)
+  var saringUsaha = { q: '', jenis: 'semua' };
   function halUsaha() {
     var aktif = (D.usaha || []).filter(function (u) { return u.aktif; });
     var chip = [['semua', 'Semua']].concat(JENIS_USAHA.map(function (j) { return [j, j]; }));
     return '<a class="btn btn-garis" href="#/">' + ik('kiri') + 'Kembali ke beranda</a>' +
       kepalaHal('Direktori Usaha Warga', aktif.length + ' usaha warga di lingkungan ini') +
       '<p style="color:var(--redup);font-size:14px;margin:0 0 16px">Data contoh — usaha asli akan diganti sesudah daftar asli dikirim.</p>' +
-      '<div class="chip-grup" role="group" aria-label="Saring jenis usaha" style="margin-bottom:16px">' + chip.map(function (c) { return '<button class="chip" data-filter-jenis="' + e(c[0]) + '" aria-pressed="' + (c[0] === 'semua') + '">' + e(c[1]) + '</button>'; }).join('') + '</div>' +
-      '<div class="tumpuk stagger">' + (aktif.length ? aktif.map(function (u) { return kartuUsahaPublik(u); }).join('') : kosong('Belum ada usaha terdaftar.', 'dompet')) + '</div>';
+      '<div class="alat"><div class="cari">' + ik('cari') + '<label class="sr" for="cariUsaha">Cari usaha</label><input id="cariUsaha" type="search" placeholder="Cari nama usaha, pemilik…" value="' + e(saringUsaha.q) + '"></div></div>' +
+      '<div class="chip-grup" role="group" aria-label="Saring jenis usaha" style="margin-bottom:16px">' + chip.map(function (c) { return '<button class="chip" data-filter-jenis="' + e(c[0]) + '" aria-pressed="' + (c[0] === saringUsaha.jenis) + '">' + e(c[1]) + '</button>'; }).join('') + '</div>' +
+      '<div id="daftarUsaha"></div>';
+  }
+  function gambarUsaha() {
+    var q = saringUsaha.q.toLowerCase();
+    var hasil = (D.usaha || []).filter(function (u) { return u.aktif; }).filter(function (u) {
+      if (saringUsaha.jenis !== 'semua' && u.jenis !== saringUsaha.jenis) return false;
+      if (!q) return true;
+      return [u.nama, u.pemilik, u.jenis].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    $('#daftarUsaha').innerHTML = hasil.length ? '<div class="tumpuk stagger">' + hasil.map(function (u) { return kartuUsahaPublik(u); }).join('') + '</div>' : kosong(q ? 'Tidak ada usaha yang cocok dengan "' + e(saringUsaha.q) + '".' : 'Belum ada usaha terdaftar.', 'dompet');
+    stagger($('#daftarUsaha'));
   }
   function kartuUsahaPublik(u) {
     return '<article class="kartu info-kartu" data-jenis="' + e(u.jenis) + '">' +
@@ -381,11 +393,13 @@
       (u.wa ? '<div class="baris-aksi" style="margin-top:12px"><a class="btn btn-wa btn-kecil" target="_blank" rel="noopener" href="' + waLink(u.wa, 'Halo, saya mau tanya tentang ' + u.nama + '.') + '" aria-label="Chat WhatsApp ' + e(u.nama) + '">' + ik('wa') + 'Chat WA</a></div>' : '') + '</div></article>';
   }
   function halUsahaPasca() {
+    gambarUsaha();
+    $('#cariUsaha').addEventListener('input', function () { saringUsaha.q = this.value; gambarUsaha(); });
     $$('[data-filter-jenis]').forEach(function (b) {
       b.addEventListener('click', function () {
+        saringUsaha.jenis = b.dataset.filterJenis;
         $$('[data-filter-jenis]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
-        var f = b.dataset.filterJenis;
-        $$('#isi [data-jenis]').forEach(function (k) { k.hidden = f !== 'semua' && k.dataset.jenis !== f; });
+        gambarUsaha();
       });
     });
   }
