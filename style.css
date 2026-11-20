@@ -63,9 +63,9 @@ svg { flex: none; }
 .merek:hover .merek-logo { transform: rotate(0) scale(1.05); }
 .merek-logo svg { width: 26px; height: 26px; } .merek-logo .pintu { fill: var(--aksen); }
 .merek-teks { display: flex; flex-direction: column; min-width: 0; }
-.merek-teks b { font-size: 15.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.merek-teks b { font-size: 15.5px; font-weight: 800; color: var(--nav-teks); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .merek-teks small { color: var(--nav-redup); font-size: 12px; font-weight: 600; }
-.atas-aksi { display: flex; gap: 8px; align-items: center; }
+.atas-aksi { display: flex; gap: 8px; align-items: center; flex: none; }
 .ikon-btn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--garis); background: var(--permukaan); color: var(--teks); display: grid; place-items: center; cursor: pointer; transition: transform var(--cepat) var(--lentur), background-color var(--sedang); }
 .ikon-btn:active { transform: scale(.92); }
 .ikon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -73,6 +73,21 @@ svg { flex: none; }
 [data-mode="gelap"] .ikon-btn .i-matahari { display: block; animation: putar .5s var(--lentur); } [data-mode="gelap"] .ikon-btn .i-bulan { display: none; }
 [data-mode="terang"] .ikon-btn .i-bulan { animation: putar .5s var(--lentur); }
 .ikon-btn:hover { background: var(--utama-latar); }
+/* T2-1: tombol Pengurus (#btnPanel) menonjol — isi warna utama token, target sentuh ≥44px.
+   Spesifisitas ID mengalahkan aturan .atas .btn-garis (latar transparan) di bawah. */
+#btnPanel { min-width: 44px; background: var(--utama); color: var(--pada-utama); border-color: transparent; box-shadow: 0 6px 14px -8px var(--utama); }
+#btnPanel:hover { background: var(--utama-tua); box-shadow: 0 10px 20px -12px var(--utama); }
+/* T2-1: HP sempit (≤460px) — header dirapatkan dan nama RT boleh turun 2 baris supaya
+   tidak terpotong elipsis; tombol tetap 44px, tidak ada scroll samping. */
+@media (max-width: 460px) {
+  .atas { gap: 8px; padding: 10px 12px; }
+  .merek { gap: 8px; }
+  .merek-logo { width: 36px; height: 36px; border-radius: 12px; }
+  .merek-logo svg { width: 22px; height: 22px; }
+  .merek-teks b { white-space: normal; overflow: visible; text-overflow: clip; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+  .atas-aksi { gap: 6px; }
+  #btnPanel { padding: 0 12px; }
+}
 
 /* Kerangka */
 .kerangka { display: grid; grid-template-columns: 1fr; max-width: 1240px; margin: 0 auto; }
@@ -101,6 +116,29 @@ body.panel .kerangka { max-width: none; }
   .bawah .nav-item[aria-current="page"]::before { display: none; }
   .bawah .nav-item.pengaturan-nav { display: none; }
   .merek-teks small { display: none; }
+}
+
+/* T2-A1: nav bawah halaman publik (pilihan A Masdan) — floating menempel di
+   bawah walaupun di-scroll, hanya HP ≤860px, sembunyi di laptop dan saat
+   panel terbuka (body.panel). Dasar display none; tampil hanya di dalam
+   @media (max-width: 860px) di bawah. Aturan body.panel menang atas aturan
+   tampil karena spesifisitasnya lebih tinggi (0,2,1 vs 0,1,0), jadi nav
+   publik dan #navBawah panel tidak pernah tampil bersamaan.
+   Latar var(--permukaan), teks var(--teks): kontras AA lolos, terang
+   14,24:1 dan gelap 14,00:1 (ambang 4,5:1). Radius var(--r) = token 18px;
+   warna baru hanya color-mix dari token; tanpa animasi baru.
+   Tinggi nav ±60px (tautan 45,4px + padding 12px + border 2px; tautan
+   min-height 44px: ikon 20px + gap 2px + label 11px/1,4 + padding 8px) —
+   menempati ±70px dari bawah layar (10px jarak + 60px), atau ±104px bila
+   safe-area iPhone 34px; margin bawah kredit 112px di index.html tetap
+   cukup (sisa ±42px biasa, ±8px bila safe-area penuh). */
+.bawah-publik { display: none; }
+.bawah-publik a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 44px; padding: 4px 2px; border-radius: var(--r); color: var(--teks); text-decoration: none; font-size: 11px; font-weight: 800; line-height: 1.4; text-align: center; }
+.bawah-publik a:hover { background: color-mix(in srgb, var(--teks) 7%, var(--permukaan)); }
+.bawah-publik svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 860px) {
+  .bawah-publik { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30; background: var(--permukaan); border: 1px solid var(--garis); border-radius: var(--r); padding: 6px 4px; box-shadow: var(--bayang-angkat); }
+  body.panel .bawah-publik { display: none; }
 }
 
 /* Komponen dasar */
@@ -226,18 +264,29 @@ td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; }
 .legenda span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
 
 /* Publik — acuan: ilustrasi lingkungan hangat (#19), kartu langkah pastel (#37) */
-.pahlawan { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); align-items: center; gap: clamp(16px, 3vw, 40px); border-radius: var(--r-besar); padding: clamp(24px, 4.5vw, 52px) clamp(20px, 4vw, 48px) 0; margin-bottom: 36px; isolation: isolate; color: var(--teks);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tema-utama) 9%, var(--permukaan)), var(--permukaan)); border: 1px solid var(--garis); box-shadow: var(--bayang); }
+/* T2-2: hero jadi blok warna penuh dari token utama (color-mix 92% utama +
+   8% permukaan). Teks di atasnya pakai --pada-utama (putih, dipilih JS di
+   app.js): kontras AA lolos, terang 5,16:1 dan gelap 6,62:1.
+   Tanpa animasi baru. */
+.pahlawan { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); align-items: center; gap: clamp(16px, 3vw, 40px); border-radius: var(--r-besar); padding: clamp(24px, 4.5vw, 52px) clamp(20px, 4vw, 48px) 0; margin-bottom: 48px; isolation: isolate; color: var(--pada-utama);
+  background: color-mix(in srgb, var(--tema-utama) 92%, var(--permukaan)); border: 1px solid color-mix(in srgb, var(--pada-utama) 65%, transparent); box-shadow: var(--bayang); }
 .pahlawan-teks { padding-bottom: clamp(24px, 4vw, 48px); }
-.pahlawan small { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: var(--utama-teks); }
+.pahlawan small { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: var(--pada-utama); }
 .pahlawan small::before { content: ""; width: 22px; height: 3px; border-radius: 3px; background: var(--aksen); }
-.pahlawan h1 { font-size: clamp(32px, 4.6vw, var(--fs-48)); font-weight: 900; margin: 14px 0 14px; max-width: 15ch; letter-spacing: -.03em; line-height: 1.04; }
-.pahlawan h1 em { font-style: normal; color: var(--utama-teks); background: linear-gradient(transparent 62%, color-mix(in srgb, var(--tema-aksen) 32%, transparent) 62% 90%, transparent 90%); }
-.pahlawan p { max-width: 46ch; margin: 0 0 20px; color: var(--redup); font-size: 16px; font-weight: 600; }
-.pahlawan .btn-garis { background: var(--permukaan); }
+.pahlawan h1 { font-size: var(--fs-48); font-weight: 900; margin: 14px 0 14px; max-width: 15ch; letter-spacing: -.03em; line-height: 1.04; }
+.pahlawan h1 em { font-style: normal; color: var(--pada-utama); background: linear-gradient(transparent 62%, color-mix(in srgb, var(--tema-aksen) 32%, transparent) 62% 90%, transparent 90%); }
+.pahlawan p { max-width: 46ch; margin: 0 0 20px; color: var(--pada-utama); font-size: 16px; font-weight: 600; }
+/* T2-2: tombol di atas blok warna — .btn jadi tombol putih berisi teks utama
+   (kontras 6,12:1 kedua mode; tombol hijau di atas hijau tidak terbaca),
+   .btn-garis jadi garis putih transparan supaya tetap terlihat jelas. */
+.pahlawan .btn { background: var(--pada-utama); color: var(--utama); border-color: transparent; box-shadow: none; }
+.pahlawan .btn:hover { background: color-mix(in srgb, var(--pada-utama) 88%, transparent); box-shadow: none; }
+.pahlawan .btn-garis { background: transparent; color: var(--pada-utama); border-color: color-mix(in srgb, var(--pada-utama) 65%, transparent); box-shadow: none; }
+.pahlawan .btn-garis:hover { background: transparent; border-color: var(--pada-utama); box-shadow: none; }
+.pahlawan .btn:focus-visible, .pahlawan .btn-garis:focus-visible { outline-color: var(--pada-utama); }
 .pahlawan-gambar { align-self: end; margin-right: calc(-1 * clamp(20px, 4vw, 48px)); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%); mask-image: linear-gradient(90deg, transparent, #000 10%); }
-.pahlawan-perumahan { text-align: right; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--utama-teks); margin-bottom: 8px; }
-.hitung-mundur { display: inline-flex; gap: 10px; align-items: center; background: var(--permukaan); border: 1px solid var(--garis); padding: 8px 16px 8px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 700; margin-bottom: 20px; box-shadow: var(--bayang); max-width: 100%; }
+.pahlawan-perumahan { text-align: right; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--pada-utama); margin-bottom: 8px; }
+.hitung-mundur { display: inline-flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--permukaan); color: var(--teks); border: 1px solid var(--garis); padding: 8px 16px 8px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 700; margin-bottom: 20px; box-shadow: var(--bayang); max-width: 100%; }
 .hitung-mundur b { background: var(--aksen-latar); color: var(--aksen-teks); padding: 2px 10px; border-radius: 99px; white-space: nowrap; }
 .titik { width: 9px; height: 9px; border-radius: 50%; background: var(--aksen); flex: none; animation: denyut 1.8s 3; box-shadow: 0 0 0 0 color-mix(in srgb, var(--tema-aksen) 50%, transparent); }
 
@@ -269,39 +318,97 @@ td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; }
 /* Judul bagian */
 .judul-baris { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .judul-baris h2 { font-size: var(--fs-20); font-weight: 900; }
-.judul-sub { color: var(--redup); font-size: 13px; font-weight: 700; }
+.judul-sub { color: color-mix(in srgb, var(--teks) 82%, transparent); font-size: 13px; font-weight: 700; }
+/* T2-A3: penanda blok warna pada judul bagian halaman publik — bilah 8px
+   di kiri judul, satu pola yang sama untuk .judul-baris h2 (5 judul:
+   Yang bisa Anda lakukan, Papan pengumuman, Agenda terdekat, No Telp
+   Penting, Galeri kegiatan) dan h2 kartu di dalam .publik-grid (Kontak
+   pengurus, Warga kita). Warna bilah var(--utama-teks): diturunkan dari
+   token utama via color-mix (terang 80% utama + #000, gelap 45% utama +
+   #fff; definisi di :root). Bilah aksen 92% tidak dipakai karena di terang
+   hanya 2,64:1 vs latar (< 3:1); bilah utama murni tidak dipakai karena
+   di gelap hanya 2,73:1 vs permukaan kartu (< 3:1). Teks judul tidak berubah
+   (tetap --teks: terang 13,34:1, gelap 15,46:1 vs latar). Kontras bilah
+   vs latar/permukaan (ambang grafis 3:1): terang 7,65/8,17 — gelap
+   9,19/8,33. Tanpa animasi baru; border + padding tidak mengubah
+   pembungkusan judul di 375px. */
+.judul-baris h2, .publik-grid .kartu > h2 { border-left: 8px solid var(--utama-teks); padding-left: 10px; }
+/* T2-A1 perbaikan: judul target anchor nav bawah publik (h2#pengumuman,
+   h2#agenda, h2#kontak di app.js) — scroll-margin-top 80px supaya sesudah
+   anchor scroll judul tidak tertutup header sticky .atas (±69px); sisa
+   ±11px. Tanpa ubah warna, huruf, atau isi. */
+#pengumuman, #agenda, #kontak { scroll-margin-top: 80px; }
 
 /* Kartu langkah (acuan #37) */
-.langkah-wadah { margin-bottom: 36px; }
+/* T2-3: lima kartu dibedakan lewat pastel yang sudah ada + cip ikon garis
+   bertinta per varian; kartu ke-5 (p-hijau kedua, "Lihat usaha warga")
+   dibedakan dari kartu ke-1 lewat cip ikon bulat + garis utama.
+   Radius pakai --r-besar (turunan token 18px); warna baru hanya color-mix
+   dari token (heks #f4c443/#8f7ff0 sudah dipakai definisi pastel di atas).
+   Nomor diperkuat 55% -> 82% supaya kontras AA: terang 6,86-7,23:1,
+   gelap 7,10-8,27:1. CTA teks-permukaan di atas teks: 14,24:1 terang,
+   14,00:1 gelap. Tanpa animasi baru. */
+/* T2-6: jarak antar bagian halaman publik, pilihan A — dasar HP 48px
+   (laptop 96px di blok @media min-width 861px di akhir berkas). */
+.langkah-wadah { margin-bottom: 48px; }
 .langkah-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.langkah { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 20px; border-radius: var(--r); min-height: 210px; transition: transform var(--sedang) var(--pegas), box-shadow var(--sedang); }
+.langkah { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: var(--r-besar); border: 1px solid color-mix(in srgb, var(--teks) 8%, transparent); min-height: 210px; transition: transform var(--sedang) var(--pegas), box-shadow var(--sedang); }
 .langkah:hover { transform: translateY(-4px) rotate(-.4deg); box-shadow: var(--bayang-angkat); }
-.langkah-no { position: absolute; top: 16px; right: 18px; font-size: 13px; font-weight: 900; color: color-mix(in srgb, var(--teks) 55%, transparent); font-variant-numeric: tabular-nums; }
-.langkah-ikon { width: 46px; height: 46px; border-radius: 15px; background: var(--permukaan); display: grid; place-items: center; margin-bottom: 8px; box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--teks) 60%, transparent); transition: transform var(--sedang) var(--pegas); }
+.langkah-no { position: absolute; top: 16px; right: 18px; font-size: 13px; font-weight: 900; color: color-mix(in srgb, var(--teks) 82%, transparent); font-variant-numeric: tabular-nums; }
+.langkah-ikon { width: 52px; height: 52px; border-radius: 17px; background: var(--permukaan); color: var(--teks); display: grid; place-items: center; margin-bottom: 8px; box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--teks) 60%, transparent); transition: transform var(--sedang) var(--pegas); }
 .langkah:hover .langkah-ikon { transform: rotate(-8deg) scale(1.06); }
-.langkah-ikon svg { width: 22px; height: 22px; fill: none; stroke: var(--teks); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.langkah-ikon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Cip ikon bertinta per varian pastel (ikon garis = stroke currentColor).
+   Kontras goresan vs cip (terang/gelap, ambang grafis 3:1): hijau 5,24/6,43 —
+   oranye 6,40/5,20 — kuning 5,50/3,56 — ungu 3,78/4,00. */
+.langkah.p-hijau .langkah-ikon { background: color-mix(in srgb, var(--tema-utama) 30%, var(--permukaan)); color: var(--utama-teks); }
+.langkah.p-oranye .langkah-ikon { background: color-mix(in srgb, var(--tema-aksen) 32%, var(--permukaan)); color: var(--aksen-teks); }
+.langkah.p-kuning .langkah-ikon { background: color-mix(in srgb, #f4c443 50%, var(--permukaan)); color: color-mix(in srgb, #f4c443 30%, var(--teks)); }
+.langkah.p-ungu .langkah-ikon { background: color-mix(in srgb, #8f7ff0 45%, var(--permukaan)); color: color-mix(in srgb, #8f7ff0 55%, var(--teks)); }
+/* Kartu ke-5 memakai p-hijau yang sama dengan kartu ke-1: bedakan lewat
+   cip ikon bulat + garis utama, tanpa kelas pastel baru. */
+.langkah-grid > :nth-child(5) .langkah-ikon { border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--tema-utama) 35%, var(--permukaan)); }
 .langkah h3 { font-size: 17px; font-weight: 900; }
 .langkah p { margin: 0; font-size: 13.5px; font-weight: 600; color: color-mix(in srgb, var(--teks) 78%, transparent); flex: 1; }
 .langkah-cta { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 99px; background: var(--teks); color: var(--permukaan); font-weight: 800; font-size: 13px; text-decoration: none; transition: gap var(--cepat) var(--lentur), transform var(--cepat); }
 .langkah-cta svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .langkah-cta:hover { gap: 10px; } .langkah-cta:active { transform: scale(.96); }
 
-.publik-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(16px, 2.5vw, 28px); align-items: start; }
+/* T2-4: rapikan grid publik + pengumuman/agenda/kontak/Warga kita.
+   Teks sekunder diperkuat --redup (70%) -> teks 82% transparan (pola yang
+   sama dengan .langkah p di T2-3), warna baru hanya color-mix dari token.
+   Kontras terhitung (terang/gelap, ambang AA 4,5:1): isi info & meta
+   8,03/9,78 (dari 5,43/7,47) — judul-sub 7,69/10,59 (dari 5,09/8,25) —
+   lencana netral di info-kartu 7,64/8,99 (dari 5,05/6,77) — jabatan pengurus
+   8,03/9,78 (dari 5,43/7,47). Tetap: tgl-blok 7,51/6,66 (batas dipertegas
+   25% -> 35% aksen, tanpa ubah warna teks), lencana utama 7,00/7,05,
+   lencana aksen 7,51/6,66, avatar 7,00/7,05, label Warga kita 6,83/8,33
+   (p-hijau) & 7,36/7,08 (p-kuning), nilai Warga kita 11,34/11,44 &
+   12,22/9,72, btn-wa #fff di #0b7a3e (heks lama, bukan baru) 5,43:1.
+   Tombol Chat WA: .btn/.btn-kecil sudah min-height 44px; di sini ditambah
+   flex none + min-width 44px supaya tidak terjepit baris pengurus.
+   Tanpa animasi baru; hover lama sudah dimatikan blok reduced-motion.
+   Grid tetap 1.35fr/1fr, 1 kolom <=980px; Warga kita tetap 2 kolom. */
+.publik-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(16px, 2.5vw, 28px); align-items: start; margin-bottom: 48px; }
+.publik-grid > * { min-width: 0; }
+.info-kartu .lencana.netral { color: color-mix(in srgb, var(--teks) 82%, transparent); }
+.pengurus-kartu .utama-baris small { color: color-mix(in srgb, var(--teks) 82%, transparent); }
+.pengurus-kartu .btn-wa { flex: none; min-width: 44px; }
 .info-kartu { display: flex; gap: 16px; transition: transform var(--sedang) var(--lentur), box-shadow var(--sedang); }
 .info-kartu:hover { transform: translateY(-2px); box-shadow: var(--bayang-angkat); }
-.tgl-blok { width: 60px; flex: none; align-self: flex-start; border-radius: 16px; background: var(--aksen-latar); color: var(--aksen-teks); text-align: center; padding: 9px 4px 8px; line-height: 1.05; border: 1.5px solid color-mix(in srgb, var(--tema-aksen) 25%, transparent); }
+.tgl-blok { width: 60px; flex: none; align-self: flex-start; border-radius: 16px; background: var(--aksen-latar); color: var(--aksen-teks); text-align: center; padding: 9px 4px 8px; line-height: 1.05; border: 1.5px solid color-mix(in srgb, var(--tema-aksen) 35%, transparent); }
 .tgl-blok b { display: block; font-size: 24px; font-weight: 900; }
 .tgl-blok small { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.info-kartu h3 { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
-.info-kartu p { margin: 0 0 10px; color: var(--redup); font-size: 14px; }
-.info-meta { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; color: var(--redup); font-weight: 600; }
+.info-kartu h3 { font-size: 17px; font-weight: 800; margin-bottom: 4px; overflow-wrap: anywhere; }
+.info-kartu p { margin: 0 0 10px; color: color-mix(in srgb, var(--teks) 82%, transparent); font-size: 14px; }
+.info-meta { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; color: color-mix(in srgb, var(--teks) 82%, transparent); font-weight: 600; }
 .info-meta span { display: inline-flex; gap: 5px; align-items: center; }
 .info-meta svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
 .sematan { border: 0; background: var(--p-hijau); box-shadow: none; }
 .sematan .tgl-blok { background: var(--permukaan); }
 .sematan .btn-garis { background: color-mix(in srgb, var(--permukaan) 75%, transparent); border-color: transparent; }
 .pengurus-kartu { display: flex; align-items: center; gap: 12px; }
-.warga-kita .stat { padding: 16px; border-radius: var(--r-kecil); }
+.warga-kita .stat { padding: 16px; border-radius: var(--r-kecil); min-width: 0; }
 .warga-kita .stat .nilai { margin-top: 4px; }
 @media (max-width: 980px) { .langkah-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .publik-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
@@ -340,8 +447,16 @@ dialog.tutup::backdrop { animation: pudar .2s reverse forwards; }
 
 /* Toast */
 .toast-wadah { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100vw - 32px); }
-body.panel .toast-wadah { bottom: 96px; }
+body.panel .toast-wadah { bottom: calc(96px + env(safe-area-inset-bottom)); }
 @media (min-width: 861px) { body.panel .toast-wadah { bottom: 24px; } }
+/* T2-A1 perbaikan: toast di HP publik (≤860px) diangkat ke 96px — mengikuti
+   preseden panel (body.panel .toast-wadah, juga 96px, jadi tanpa konflik)
+   — supaya tidak menutupi nav bawah publik .bawah-publik (z-index 30,
+   menempati ±70px dari bawah: jarak 10px + tinggi ±60px); toast di 96px
+   berarti ±26px di atas nav. Di ≥861px nav tidak tampil, toast tetap
+   24px. Aturan ini ditaruh sesudah .toast-wadah dasar supaya menang
+   atasnya (spesifisitas sama, yang belakangan menang). */
+@media (max-width: 860px) { .toast-wadah { bottom: calc(96px + env(safe-area-inset-bottom)); } }
 .toast { background: var(--teks); color: var(--permukaan); padding: 13px 20px; border-radius: 99px; font-weight: 600; font-size: 14px; box-shadow: var(--bayang); display: flex; gap: 10px; align-items: center; animation: toastMasuk .35s var(--lentur); pointer-events: auto; }
 .toast svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; }
 .toast.pergi { animation: toastKeluar .25s ease-in forwards; }
@@ -418,9 +533,21 @@ html.mode-pilih [data-pilih-hover] { outline: 2px solid var(--tema-aksen) !impor
 .merek-gambar, .avatar-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .merek-logo .merek-gambar { background: var(--permukaan); }
 .hero-foto { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--r-besar) var(--r-besar) 0 0; }
-.galeri-wadah { margin-top: 36px; }
+/* T2-5: rapikan galeri — auto-fill -> auto-fit supaya 4 foto mengisi penuh
+   satu baris di laptop (tanpa slot kolom kosong di kanan); di 375px tetap
+   1 kolom. Keterangan (figcaption) ditegaskan warnanya --teks di atas
+   --permukaan: kontras AA 14,24:1 terang dan 14,00:1 gelap, plus
+   overflow-wrap supaya keterangan panjang tidak meluber. Tanpa warna baru
+   (hanya token), tanpa animasi baru; hover lama sudah dimatikan blok
+   reduced-motion. */
+/* T2-6: margin-top lama 36px dihapus (jadi 0) supaya jarak di atas galeri
+   hanya dari satu sumber, yaitu margin-bottom .publik-grid. Catatan:
+   margin vertikal saudara kandung menyatu (margin-collapse), jadi jaraknya
+   tetap max(48,36)=48px di HP dan max(96,36)=96px di laptop walau
+   margin-top 36px dipertahankan. */
+.galeri-wadah { margin-top: 0; margin-bottom: 48px; }
 /* No Telp Penting (R-T1): kartu kecil rapat, tanpa keterangan, tombol tel di bawah nomor */
-.telp-penting { margin-bottom: 36px; }
+.telp-penting { margin-bottom: 48px; }
 .telp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 12px; }
 .telp-kartu { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 10px; text-align: center; }
 .telp-kartu h3 { font-size: 13px; font-weight: 800; margin: 0; line-height: 1.15; }
@@ -430,10 +557,22 @@ html.mode-pilih [data-pilih-hover] { outline: 2px solid var(--tema-aksen) !impor
 .telp-nasional { background: color-mix(in srgb, var(--tema-utama) 24%, var(--permukaan)); border-color: color-mix(in srgb, var(--tema-utama) 55%, var(--garis)); }
 .telp-lokal { background: color-mix(in srgb, var(--tema-aksen) 32%, var(--permukaan)); border-color: color-mix(in srgb, var(--tema-aksen) 55%, var(--garis)); }
 .telp-kartu .lencana { align-self: center; font-size: 11px; padding: 2px 8px; }
-.galeri { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.galeri { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
 .galeri-item { margin: 0; border-radius: var(--tema-radius); overflow: hidden; background: var(--permukaan); border: 1px solid var(--garis, transparent); }
 .galeri-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform var(--sedang); }
 .galeri-item:hover img { transform: scale(1.03); }
-.galeri-item figcaption { padding: 10px 12px; font-weight: 700; font-size: 14px; }
+.galeri-item figcaption { padding: 10px 12px; font-weight: 700; font-size: 14px; color: var(--teks); line-height: 1.4; overflow-wrap: anywhere; }
 .kop .kop-logo { width: 70px; height: 70px; object-fit: contain; }
 @media (prefers-reduced-motion: reduce) { .galeri-item:hover img { transform: none; } }
+
+/* T2-6: jarak antar bagian halaman publik, pilihan A — laptop 96px.
+   Ditaruh di akhir berkas supaya menang atas aturan dasar 48px di atas
+   (spesifisitas sama, yang belakangan menang). Batas 861px mengikuti
+   pemisah yang sudah dipakai berkas ini (@media max-width 860px untuk
+   nav bawah HP dan min-width 861px untuk toast/#btnAtur), jadi tidak ada
+   celah 1px dan tidak tertimpa media query ≤980/≤720/≤460px — tidak satu
+   pun dari ketiganya menyentuh margin-bottom kelima bagian ini.
+   Hanya jarak vertikal: tanpa ubah warna, huruf, lebar, atau isi. */
+@media (min-width: 861px) {
+  .pahlawan, .langkah-wadah, .telp-penting, .publik-grid, .galeri-wadah { margin-bottom: 96px; }
+}
