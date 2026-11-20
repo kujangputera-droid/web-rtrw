@@ -60,7 +60,7 @@ window.buatDataContoh = function () {
   });
 
   // Iuran 6 bulan terakhir. Beberapa KK sengaja menunggak supaya fitur pengingat terlihat.
-  var iuran = {}, nominal = 25000;
+  var iuran = {}, nominal = 50000;
   var penunggak = { kk4: 3, kk7: 2, kk10: 1, kk13: 4 };
   for (var o = -5; o <= 0; o++) {
     var b = bk(o); iuran[b] = {};
@@ -96,7 +96,7 @@ window.buatDataContoh = function () {
     { id: 'in3', jenis: 'agenda', judul: 'Rapat pengurus & perwakilan warga', isi: 'Bahas rencana pengecatan gapura dan laporan kas triwulan.', tgl: depan(10), jam: '19:30', tempat: 'Rumah Ketua RT, Blok A No. 1' },
     { id: 'in4', jenis: 'pengumuman', judul: 'Jadwal ronda malam diperbarui', isi: 'Jadwal ronda bulan ini sudah ditempel di pos ronda. Yang berhalangan harap tukar jadwal dengan tetangga dan lapor ke Sie Keamanan.', tgl: tgl(0, 1) },
     { id: 'in5', jenis: 'agenda', judul: 'Pengajian rutin ibu-ibu', isi: 'Pengajian bulanan bergiliran. Tuan rumah: Ibu Dewi, Blok A No. 3.', tgl: depan(13), jam: '16:00', tempat: 'Blok A No. 3' },
-    { id: 'in6', jenis: 'pengumuman', judul: 'Iuran bisa via transfer', isi: 'Iuran bulanan Rp25.000 bisa dibayar tunai ke Bendahara atau transfer. Kirim bukti ke WA Bendahara.', tgl: tgl(-1, 25) }
+    { id: 'in6', jenis: 'pengumuman', judul: 'Iuran bisa via transfer', isi: 'Iuran bulanan Rp50.000 bisa dibayar tunai ke Bendahara atau transfer. Kirim bukti ke WA Bendahara.', tgl: tgl(-1, 25) }
   ];
 
   return {
