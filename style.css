@@ -236,6 +236,7 @@ td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; }
 .pahlawan p { max-width: 46ch; margin: 0 0 20px; color: var(--redup); font-size: 16px; font-weight: 600; }
 .pahlawan .btn-garis { background: var(--permukaan); }
 .pahlawan-gambar { align-self: end; margin-right: calc(-1 * clamp(20px, 4vw, 48px)); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%); mask-image: linear-gradient(90deg, transparent, #000 10%); }
+.pahlawan-perumahan { text-align: right; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--utama-teks); margin-bottom: 8px; }
 .hitung-mundur { display: inline-flex; gap: 10px; align-items: center; background: var(--permukaan); border: 1px solid var(--garis); padding: 8px 16px 8px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 700; margin-bottom: 20px; box-shadow: var(--bayang); max-width: 100%; }
 .hitung-mundur b { background: var(--aksen-latar); color: var(--aksen-teks); padding: 2px 10px; border-radius: 99px; white-space: nowrap; }
 .titik { width: 9px; height: 9px; border-radius: 50%; background: var(--aksen); flex: none; animation: denyut 1.8s 3; box-shadow: 0 0 0 0 color-mix(in srgb, var(--tema-aksen) 50%, transparent); }
