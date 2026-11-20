@@ -631,3 +631,41 @@ body.panel .kartu.stat.p-ungu .label i { background: color-mix(in srgb, #8f7ff0 
   body.panel .bawah .nav-item[aria-current="page"] { color: var(--utama-teks); }
   body.panel .bawah .nav-item[aria-current="page"] svg { background: var(--utama); color: var(--pada-utama); }
 }
+
+/* T4: rapikan Data warga & KK di Panel Pengurus — seirama gaya baru T2/T3,
+   tata letak beda dari bagian sebelumnya (bukan monoton). Publik: hero blok
+   warna + judul bilah 8px kiri. Panel T3: kartu sapaan jadi pita blok warna
+   + judul bergaris bawah. Warga T4: direktori — bilah alat (cari + saring)
+   jadi pita permukaan berbingkai, kartu KK bertepi atas aksen utama dengan
+   avatar bertinta bergilir per posisi, kepala tabel anggota di modal
+   bertinta utama, baris kepala keluarga di form bertinta utama.
+   Hanya style.css; tanpa ubah app.js/data.js/tema.js, tanpa ubah token,
+   tanpa ubah logika/fungsi warga-KK; warna baru hanya color-mix dari token.
+   Kontras (terang/gelap, ambang AA 4,5:1, dihitung skrip): putih di atas
+   utama penuh = 6,12:1 dua mode (chip aktif warga) — utama-teks di atas
+   permukaan-2 = 7,59:1 / 7,53:1 (label kepala keluarga) — utama-teks di
+   atas utama-latar = 7,00:1 / 7,05:1 (th tabel modal, pasangan yang sama
+   dengan .lencana) — teks di atas p-kuning/p-ungu = 12,22/11,38:1 terang
+   dan 9,72/10,43:1 gelap (avatar, pola yang sama dengan .daftar baris 225).
+   Tanpa animasi baru; hover lama sudah dimatikan blok reduced-motion. */
+/* T4-1: bilah alat warga (cari + chip saring) jadi pita permukaan berbingkai.
+   Dicakup :has(#cariWarga) karena .alat juga dipakai iuran dan kas — pita
+   ini hanya untuk halaman warga. Chip aktif di sini isi utama + teks putih
+   (beda dari chip aktif global yang isi teks). */
+.alat:has(#cariWarga) { background: var(--permukaan); border: 1px solid var(--garis); border-radius: var(--r-kecil); padding: 10px 12px; }
+.alat:has(#cariWarga) .chip[aria-pressed="true"] { background: var(--utama); border-color: var(--utama); color: var(--pada-utama); }
+/* T4-2: kartu KK — tepi atas aksen utama, avatar bertinta bergilir per
+   posisi (pola yang sama dengan .daftar baris 225; aksen kontrak tidak
+   ikut digilir supaya status kontrak tetap terbaca oranye). */
+.kk-kartu { border-top: 3px solid var(--utama-garis); }
+.kk-grid .kk-kartu:nth-child(3n+2) .avatar:not(.aksen) { background: var(--p-kuning); color: var(--teks); }
+.kk-grid .kk-kartu:nth-child(3n) .avatar:not(.aksen) { background: var(--p-ungu); color: var(--teks); }
+/* T4-3: kepala tabel anggota di modal detail KK bertinta utama (pasangan
+   yang sama dengan .lencana). Dicakup .modal-isi karena tabel di halaman
+   iuran/kas bukan di modal — aturan ini hanya kena tabel modal detail KK. */
+.modal-isi .tabel-wadah th { background: var(--utama-latar); color: var(--utama-teks); }
+/* T4-4: baris kepala keluarga di form KK bertinta utama supaya beda dari
+   baris anggota biasa. Dicakup #wadahAnggota + [data-anggota] karena
+   .anggota-baris juga dipakai form pengurus dan No Telp Penting. */
+#wadahAnggota .anggota-baris[data-anggota]:first-child { border-color: var(--utama-garis); }
+#wadahAnggota .anggota-baris[data-anggota]:first-child .kepala-baris span { color: var(--utama-teks); }
