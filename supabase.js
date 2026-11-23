@@ -28,7 +28,7 @@
   // Selama masih placeholder, situs jalan 100% offline (localStorage
   // saja) tanpa error.
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-  var SUPABASE_ANON_KEY = 'ISI-ANON-KEY-DI-SINI';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVveXdobWhybHJ2bGRpZ2toZ2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTUzMDIsImV4cCI6MjExMDk3MTMwMn0.qBcFzq8ZyYvw9P9v8-x3C_MyHw035-7iu-Do6j5D_LA';
   var BUCKET_FOTO = 'rtrw-foto';
 
   var DEMO = /[?&]demo\b/.test(location.search);
