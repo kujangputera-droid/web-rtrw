@@ -93,6 +93,13 @@
     try { localStorage.setItem(KUNCI, JSON.stringify(D)); }
     catch (x) { toast('Gagal menyimpan: memori browser penuh', 'bahaya'); }
   }
+  /* Sinkron tabel publik ke Supabase sesudah simpan lokal. Gagal = diam
+     (console.warn di supabase.js), simpan lokal tidak pernah gagal karenanya.
+     Mode demo tidak pernah menyentuh Supabase. */
+  function sinkronPublik(tabel) {
+    if (DEMO || !window.RTRW_SUPABASE) return;
+    window.RTRW_SUPABASE.sinkronTabel(tabel, tabel === 'telp_penting' ? D.telpPenting : D[tabel]);
+  }
   function cariKK(id) { return D.kk.filter(function (k) { return k.id === id; })[0]; }
   function jiwaTotal() { return D.kk.reduce(function (s, k) { return s + k.anggota.length; }, 0); }
   function sudahBayar(b, id) { return !!(D.iuran[b] && D.iuran[b][id]); }
@@ -694,7 +701,7 @@
   function infoKlik(ev) {
     var u = ev.target.closest('[data-ubah-info]'), h = ev.target.closest('[data-hapus-info]');
     if (u) formInfo(D.info.filter(function (i) { return i.id === u.dataset.ubahInfo; })[0]);
-    if (h) { var i = D.info.filter(function (x) { return x.id === h.dataset.hapusInfo; })[0]; konfirmasi('Hapus "' + i.judul + '"?', 'Informasi ini akan hilang dari halaman publik.', 'Hapus', function () { D.info = D.info.filter(function (x) { return x !== i; }); simpan(); render(); toast('Dihapus'); }); }
+    if (h) { var i = D.info.filter(function (x) { return x.id === h.dataset.hapusInfo; })[0]; konfirmasi('Hapus "' + i.judul + '"?', 'Informasi ini akan hilang dari halaman publik.', 'Hapus', function () { D.info = D.info.filter(function (x) { return x !== i; }); simpan(); sinkronPublik('info'); render(); toast('Dihapus'); }); }
   }
   function teksBagikan(i) {
     return '📢 *' + i.judul + '*\n' + namaRT() + ' · Kel. ' + D.pengaturan.kelurahan + '\n\n' + i.isi + '\n\n🗓️ ' + tglHari(i.tgl) + (i.jam ? '\n⏰ ' + i.jam + ' WIB' : '') + (i.tempat ? '\n📍 ' + i.tempat : '') + '\n\nTerima kasih. — Pengurus ' + namaRT();
@@ -717,7 +724,7 @@
         if (!f.judul.value.trim() || !f.isi.value.trim()) { (f.judul.value.trim() ? f.isi : f.judul).focus(); toast('Judul dan isi wajib diisi', 'bahaya'); return; }
         var data = { jenis: f.jenis.value, tgl: f.tgl.value || hariIni(), judul: f.judul.value.trim(), isi: f.isi.value.trim(), jam: f.jam.value, tempat: f.tempat.value.trim(), sematkan: f.sematkan.checked };
         if (baru) { data.id = idBaru('in'); D.info.push(data); } else Object.assign(i, data);
-        simpan(); tutupModal(); render(); toast('Tersimpan & tampil di halaman publik');
+        simpan(); sinkronPublik('info'); tutupModal(); render(); toast('Tersimpan & tampil di halaman publik');
       });
     });
   }
@@ -749,7 +756,7 @@
     if (h) {
       var x = (D.usaha || []).filter(function (y) { return y.id === h.dataset.hapusUsaha; })[0];
       if (!x) return;
-      konfirmasi('Hapus "' + x.nama + '"?', 'Usaha ini akan hilang dari daftar dan direktori.', 'Hapus', function () { D.usaha = D.usaha.filter(function (y) { return y !== x; }); simpan(); render(); toast('Usaha dihapus'); });
+      konfirmasi('Hapus "' + x.nama + '"?', 'Usaha ini akan hilang dari daftar dan direktori.', 'Hapus', function () { D.usaha = D.usaha.filter(function (y) { return y !== x; }); simpan(); sinkronPublik('usaha'); render(); toast('Usaha dihapus'); });
     }
   }
 
@@ -770,7 +777,7 @@
         if (!f.nama.value.trim() || !f.pemilik.value.trim() || !waNomor(f.wa.value) || !f.alamat.value.trim()) { (!f.nama.value.trim() ? f.nama : !f.pemilik.value.trim() ? f.pemilik : !waNomor(f.wa.value) ? f.wa : f.alamat).focus(); toast('Nama, pemilik, WA, dan alamat wajib diisi', 'bahaya'); return; }
         var data = { nama: f.nama.value.trim(), pemilik: f.pemilik.value.trim(), jenis: f.jenis.value, wa: waNomor(f.wa.value), alamat: f.alamat.value.trim(), jam: f.jam.value.trim(), ket: f.ket.value.trim(), aktif: f.aktif.checked };
         if (baru) { data.id = idBaru('us'); data.dibuat = hariIni(); D.usaha.push(data); } else Object.assign(u, data);
-        simpan(); tutupModal(); render(); toast('Usaha tersimpan');
+        simpan(); sinkronPublik('usaha'); tutupModal(); render(); toast('Usaha tersimpan');
       });
     });
   }
@@ -911,7 +918,7 @@
     $('#simpanTelp').addEventListener('click', function () {
       var daftar = bacaTelp().filter(function (t) { return t.nama && t.nomor; });
       if (!daftar.length) { toast('Isi minimal 1 nomor', 'bahaya'); return; }
-      D.telpPenting = daftar; telpIdTersimpan = {}; daftar.forEach(function (t) { telpIdTersimpan[t.id] = true; }); simpan(); gambarTelp(); toast('No telp penting disimpan');
+      D.telpPenting = daftar; telpIdTersimpan = {}; daftar.forEach(function (t) { telpIdTersimpan[t.id] = true; }); simpan(); sinkronPublik('telp_penting'); gambarTelp(); toast('No telp penting disimpan');
     });
 
     var fT = $('#fTampilan');
@@ -1064,6 +1071,14 @@
   /* ========== 9. Mulai ========== */
   D = muat();
   if (!DEMO) simpan();
+  /* Muat awal Supabase (hanya tabel publik; mode demo tidak pernah): bila
+     cloud punya baris, pakai data cloud (menimpa data contoh lokal); bila
+     cloud kosong, coba kirim data lokal sebagai seed; bila gagal/offline,
+     pakai data lokal seperti sekarang. */
+  if (!DEMO && window.RTRW_SUPABASE) window.RTRW_SUPABASE.muatAwal(
+    { info: D.info, usaha: D.usaha, telpPenting: D.telpPenting },
+    function (kunciLokal, baris) { D[kunciLokal] = baris; simpan(); render(); }
+  );
   terapkan(Object.assign({ nama: TEMA.nama }, tampilan));
   $('#btnMode').addEventListener('click', function () {
     var jadi = document.documentElement.getAttribute('data-mode') === 'gelap' ? 'terang' : 'gelap';
