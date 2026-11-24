@@ -108,7 +108,9 @@ body.panel .kerangka { max-width: none; }
 @media (max-width: 860px) {
   body.panel .kerangka { grid-template-columns: 1fr; }
   body.panel .samping { display: none; }
-  body.panel .bawah { display: grid; grid-template-columns: repeat(7, 1fr); position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30; background: color-mix(in srgb, var(--nav) 92%, transparent); backdrop-filter: saturate(1.4) blur(16px); border: 1px solid var(--nav-garis); border-radius: 26px; padding: 6px 4px; box-shadow: var(--bayang-angkat); }
+  body.panel .bawah { display: flex; overflow-x: auto; scrollbar-width: none; position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30; background: color-mix(in srgb, var(--nav) 92%, transparent); backdrop-filter: saturate(1.4) blur(16px); border: 1px solid var(--nav-garis); border-radius: 26px; padding: 6px 4px; box-shadow: var(--bayang-angkat); }
+  body.panel .bawah::-webkit-scrollbar { display: none; }
+  body.panel .bawah .nav-item { flex: 0 0 auto; min-width: 62px; }
   body.panel main { padding-bottom: 110px; }
   .bawah .nav-item { flex-direction: column; gap: 2px; padding: 6px 0; font-size: 10.5px; font-weight: 700; justify-content: center; border-radius: 18px; }
   .bawah .nav-item[aria-current="page"] { background: none; color: var(--nav-teks); }
@@ -183,6 +185,11 @@ textarea { min-height: 90px; resize: vertical; }
 .cari svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; fill: none; stroke: var(--redup); stroke-width: 2; }
 .cari input { padding-left: 42px; border-radius: 999px; }
 .alat { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+
+/* Pekerja 3 (PRD-v4 UI 7): pemilih wilayah di atas panel — baris kartu,
+   label + select + catatan; select memakai gaya input generik. */
+.pilih-wilayah { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 16px; padding: 12px 16px; }
+.pilih-wilayah select { flex: 1; min-width: 200px; }
 
 .chip-grup { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { border: 1.5px solid var(--garis); background: var(--permukaan); color: var(--redup); padding: 7px 16px; border-radius: 99px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; min-height: 44px; transition: transform var(--cepat) var(--lentur), background-color var(--cepat), color var(--cepat); }

@@ -1,7 +1,7 @@
 /* kredit-maliki: Template oleh Maliki Saputra (@malikisaputra) — https://malikisaputra.biz.id. Lisensi Nonkomersial Maliki Studio: wajib kredit, dilarang dijual (lihat LICENSE). */
 /* Website RT/RW — aplikasi statis (tanpa server). Data di localStorage perangkat ini.
    Susunan: 1) utilitas  2) data & simpan  3) tema  4) router & kerangka  5) halaman publik
-            6) halaman pengurus (ringkas, warga, iuran, kas, info, surat, pengaturan)  7) modal/toast  8) CSV/JSON  9) mulai */
+            6) halaman pengurus (ringkas, warga, iuran, kas, info, surat, pengaturan, akun)  6b) auth publik (masuk, daftar, daftar-wilayah, lupa-pin, disclaimer)  6c) admin (kelola pengurus, kelola wilayah, halaman RW, pilih wilayah, log)  7) modal/toast  8) CSV/JSON  9) mulai */
 (function () {
   'use strict';
 
@@ -16,6 +16,9 @@
   var ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+  /* F12: isi innerHTML hanya bila elemen masih ada — callback async bisa
+     jalan sesudah pengguna pindah halaman dan elemennya sudah tidak ada. */
+  function aturHtml(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
   function e(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   var fmtRp = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
   function rp(n) { return fmtRp.format(n || 0).replace(/\s/g, ''); }
@@ -204,25 +207,172 @@
   function namaUsaha() { return tampilan.nama || window.TEMA.nama; }
 
   /* ========== 4. Router & kerangka ========== */
+  /* Peran yang boleh buka tiap menu (Pekerja 3, PRD-v4 UI 4-7, 11).
+     admin_rw HANYA halaman RW + Akun saya; pengurus 8 menu dasar + Akun
+     saya; admin_rt + Kelola Pengurus + Log; superadmin semua. */
   var MENU = [
-    { id: 'ringkas', label: 'Ringkas', ikon: 'ringkas' },
-    { id: 'warga', label: 'Warga', ikon: 'warga' },
-    { id: 'iuran', label: 'Iuran', ikon: 'iuran' },
-    { id: 'kas', label: 'Kas', ikon: 'kas' },
-    { id: 'info', label: 'Info', ikon: 'info' },
-    { id: 'usaha', label: 'Usaha', ikon: 'dompet' },
-    { id: 'surat', label: 'Surat', ikon: 'surat' },
-    { id: 'pengaturan', label: 'Pengaturan', ikon: 'atur' }
+    { id: 'ringkas', label: 'Ringkas', ikon: 'ringkas', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'warga', label: 'Warga', ikon: 'warga', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'iuran', label: 'Iuran', ikon: 'iuran', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'kas', label: 'Kas', ikon: 'kas', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'info', label: 'Info', ikon: 'info', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'usaha', label: 'Usaha', ikon: 'dompet', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'surat', label: 'Surat', ikon: 'surat', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'pengaturan', label: 'Pengaturan', ikon: 'atur', peran: ['superadmin', 'admin_rt', 'pengurus'] },
+    { id: 'rw', label: 'Halaman RW', labelPendek: 'RW', ikon: 'rumah', peran: ['superadmin', 'admin_rw'] },
+    { id: 'kelola-pengurus', label: 'Kelola Pengurus', labelPendek: 'Pengurus', ikon: 'warga', peran: ['superadmin', 'admin_rt'] },
+    { id: 'kelola-wilayah', label: 'Kelola Wilayah', labelPendek: 'Wilayah', ikon: 'rumah', peran: ['superadmin'] },
+    { id: 'log', label: 'Log Histori', labelPendek: 'Log', ikon: 'jam', peran: ['superadmin', 'admin_rt'] },
+    { id: 'akun', label: 'Akun saya', ikon: 'jiwa', peran: ['superadmin', 'admin_rw', 'admin_rt', 'pengurus'] }
   ];
+  function cariMenu(id) { return MENU.filter(function (m) { return m.id === id; })[0]; }
+  function menuBoleh(id, peran) { var m = cariMenu(id); return !!m && (!m.peran || m.peran.indexOf(peran) >= 0); }
+  function menuUntuk(peran) { return MENU.filter(function (m) { return !peran || !m.peran || m.peran.indexOf(peran) >= 0; }); }
   var JENIS_USAHA = ['Makanan & Minuman', 'Jasa', 'Produk / Barang', 'Lainnya'];
   var terbuka = DEMO || sessionStorage.getItem('website-rt-buka') === '1';
   var HAL = {};
   var halSebelum = '';
 
+  /* ========== 4b. Auth Supabase — PIN & akun (bukan localStorage) ========== */
+  /* Client Supabase KHUSUS auth: supabase.js tidak mengekspos client/RPC-nya
+     dan berkas itu dilarang diubah, jadi app.js membuat client sendiri dari
+     URL + anon key yang SAMA dengan supabase.js. Anon key bersifat publik
+     (hanya lewat RLS/RPC; service_role tidak pernah ada di sini). Bila kunci
+     dirotasi, samakan di kedua berkas. */
+  var SB_URL = 'https://uoywhmhrlrvldigkhgfj.supabase.co';
+  var SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVveXdobWhybHJ2bGRpZ2toZ2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTUzMDIsImV4cCI6MjExMDk3MTMwMn0.qBcFzq8ZyYvw9P9v8-x3C_MyHw035-7iu-Do6j5D_LA';
+  var sbKlien = null;
+  function sb() {
+    if (sbKlien) return sbKlien;
+    if (DEMO) return null;
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
+    try { sbKlien = window.supabase.createClient(SB_URL, SB_ANON_KEY); } catch (x) { sbKlien = null; }
+    return sbKlien;
+  }
+  function sbRpc(nama, param) {
+    var c = sb();
+    if (!c) return Promise.reject(new Error('offline'));
+    return c.rpc(nama, param).then(function (r) {
+      if (r.error) {
+        /* Token ditolak server (mis. tulis_log tanpa sesi valid): sesi habis. */
+        if (/token sesi tidak valid/i.test(r.error.message || '')) sesiHabis();
+        throw new Error(r.error.message);
+      }
+      return r.data;
+    });
+  }
+  /* Token sesi: HANYA di sessionStorage (objek sesi), tidak pernah di
+     localStorage. Diterbitkan verifikasi_pin (64 hex, 8 jam), dikirim
+     sebagai p_token pertama di semua RPC admin. */
+  function tokenSesi() { var s = sesi(); return (s && s.token) || ''; }
+  /* Sesi habis / token ditolak: bersihkan sesi lalu lempar ke halaman masuk. */
+  function sesiHabis() {
+    if (sesi()) {
+      tokenTervalidasiUntuk = '';
+      simpanSesi(null); terbuka = false;
+      try { sessionStorage.removeItem('website-rt-buka'); } catch (x) {}
+      toast('Sesi habis, masuk lagi', 'bahaya');
+      if (location.hash !== '#/masuk') location.hash = '#/masuk'; else render();
+    }
+  }
+  /* Validasi token sekali per muat halaman DAN tiap kali nilainya berubah
+     (dipakai render() untuk rute panel): profil_pengurus kosong = token
+     tidak dikenal / kadaluarsa. Gagal jaringan (reject) TIDAK membuat sesi
+     habis — hanya hasil kosong. */
+  var tokenTervalidasiUntuk = '';
+  function cekToken() {
+    var s = sesi();
+    if (!s || !s.token) { sesiHabis(); return; }
+    if (tokenTervalidasiUntuk === s.token) return;
+    sbRpc('profil_pengurus', { p_token: s.token }).then(function (rows) {
+      if ((rows || []).length) tokenTervalidasiUntuk = s.token;
+      else sesiHabis();
+    }).catch(function () { tokenTervalidasiUntuk = s.token; });
+  }
+  /* Sesi pengurus (sessionStorage, hilang bila tab ditutup): id, nama,
+     jabatan, peran, wilayah_id, pin_sementara, token. 'website-rt-buka'
+     lama tetap dipakai sebagai penanda panel terbuka. Token TIDAK PERNAH
+     ditulis ke localStorage. */
+  var KUNCI_SESI = 'website-rt-sesi';
+  function sesi() {
+    try { return JSON.parse(sessionStorage.getItem(KUNCI_SESI) || 'null'); } catch (x) { return null; }
+  }
+  function simpanSesi(s) {
+    if (!s) { try { sessionStorage.removeItem(KUNCI_SESI); } catch (x) {} return; }
+    try { sessionStorage.setItem(KUNCI_SESI, JSON.stringify(s)); } catch (x) {}
+  }
+  function keluarSesi() {
+    /* Logout: hapus token di server dulu (fire-and-forget), baru sesi lokal. */
+    var t = tokenSesi();
+    if (t && !DEMO) sbRpc('keluar_sesi', { p_token: t }).catch(function () {});
+    tokenTervalidasiUntuk = '';
+    terbuka = false; simpanSesi(null);
+    try { sessionStorage.removeItem('website-rt-buka'); } catch (x) {}
+  }
+  if (!DEMO && sesi()) terbuka = true;
+  /* Catat log (fire-and-forget, tidak pernah menghambat UI). Tanda tangan
+     BARU tulis_log(p_token, p_aksi, p_rincian, p_wilayah_target): wilayah +
+     pelaku diambil server dari baris sesi, jadi tidak bisa dipalsukan dari
+     browser. Parameter ketiga (wilayahTarget) opsional: diisi untuk aksi
+     lintas wilayah (mis. Superadmin menyetujui pengurus wilayah lain) agar
+     log tercatat di wilayah TARGET, bukan wilayah sesi; kosong = NULL =
+     wilayah sesi. Tanpa token (mis. pendaftaran anon) log dilewati
+     diam-diam. Dipakai juga untuk: persetujuan pendaftaran, reset PIN,
+     ganti peran, dan tambah/ubah/hapus warga, iuran, kas, surat, info (F7). */
+  function catatLog(aksi, rincian, wilayahTarget) {
+    var t = tokenSesi(), c = sb();
+    if (!t || !c) return;
+    c.rpc('tulis_log', { p_token: t, p_aksi: aksi, p_rincian: rincian || '', p_wilayah_target: wilayahTarget || null })
+      .then(function (r) {
+        if (r.error) {
+          if (/token sesi tidak valid/i.test(r.error.message || '')) sesiHabis();
+          else console.warn('[log] ' + r.error.message);
+        }
+      })
+      .catch(function (x) { console.warn('[log] ' + (x && x.message || x)); });
+  }
+  /* Daftar wilayah aktif (cache per sesi halaman). */
+  var daftarWilayah = null;
+  function muatWilayah() {
+    if (daftarWilayah) return Promise.resolve(daftarWilayah);
+    var c = sb();
+    if (!c) return Promise.reject(new Error('offline'));
+    return c.from('wilayah').select('id,jenis,nomor,kelurahan,kecamatan,kota,provinsi,ketua_nama,ketua_wa,ketua_email,rw_induk_id')
+      .eq('status', 'aktif').order('kelurahan').order('nomor')
+      .then(function (r) {
+        if (r.error) throw new Error(r.error.message);
+        daftarWilayah = r.data || [];
+        return daftarWilayah;
+      });
+  }
+  function labelWilayah(w) {
+    if (!w) return '-';
+    return (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + (w.kelurahan ? ' — Kel. ' + w.kelurahan : '');
+  }
+  function cariWilayah(id) { return (daftarWilayah || []).filter(function (w) { return w.id === id; })[0]; }
+  function opsiWilayah(pilih) {
+    return '<option value="">— Pilih wilayah —</option>' + (daftarWilayah || []).map(function (w) {
+      return '<option value="' + e(w.id) + '"' + (w.id === pilih ? ' selected' : '') + '>' + e(labelWilayah(w)) + '</option>';
+    }).join('');
+  }
+  function slugWilayah(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  /* Format pesan Lupa PIN (disetujui Masdan 24 Nov 2026): buka wa.me gratis
+     dari WA masing-masing, BUKAN WA Business API. */
+  function pesanLupaPinSuperadmin(nama, jabatan, w) {
+    var mana = (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor;
+    return 'Halo Masdan, saya ' + nama + ' (' + jabatan + ') ' + mana + ' lupa PIN panel pengurus. Mohon reset PIN saya. Terima kasih.';
+  }
+  function pesanLupaPin(nama, jabatan, w) {
+    var mana = (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor;
+    return 'Halo Pak RT, saya ' + nama + ' (' + jabatan + ') ' + mana + ' lupa PIN panel pengurus. Mohon reset PIN saya. Terima kasih.';
+  }
+
   function rute() {
     var h = location.hash.replace(/^#\/?/, '');
     var bag = h.split('/');
     if (bag[0] === 'usaha') return { hal: 'usaha' };
+    if (bag[0] === 'rw') return { hal: 'rw-publik', arg: bag[1] };
+    if (bag[0] === 'masuk' || bag[0] === 'daftar' || bag[0] === 'daftar-wilayah' || bag[0] === 'disclaimer' || bag[0] === 'lupa-pin') return { hal: bag[0] };
     if (bag[0] !== 'panel') return { hal: 'publik' };
     var id = bag[1] || 'ringkas';
     if (!MENU.some(function (m) { return m.id === id; })) id = 'ringkas';
@@ -236,7 +386,22 @@
     // 'usaha' sama dengan hal direktori publik, jadi tes r.hal saja akan salah
     // menganggap panel Usaha sebagai halaman publik (tanpa PIN).
     var panel = /^#\/panel(\/|$)/.test(location.hash);
-    if (panel && !terbuka) { history.replaceState(null, '', '#/'); bukaPin(r.hal); return; }
+    var s = sesi();
+    /* Gerbang masuk: panel butuh sesi Supabase (PIN lama 1234 tidak berlaku
+       lagi). Tanpa sesi, lempar ke halaman masuk baru, bukan modal PIN lama. */
+    if (panel && !DEMO && !s) { history.replaceState(null, '', '#/masuk'); render(); return; }
+    /* Token sesi dicek sekali per muat halaman: token palsu / kadaluarsa
+       dilempar ke halaman masuk (cekToken -> sesiHabis). */
+    if (panel && !DEMO && s) cekToken();
+    /* PIN sementara (habis reset Pak RT): wajib ganti PIN di Akun saya
+       sebelum bisa buka menu lain. */
+    if (panel && s && s.pin_sementara && r.hal !== 'akun') { location.hash = '#/panel/akun'; toast('PIN sementara — ganti PIN dulu di Akun saya', 'bahaya'); return; }
+    /* Gating peran (Pekerja 3): menu di luar hak peran dilempar ke menu
+       awal peran itu + toast. admin_rw -> Halaman RW, peran lain -> Ringkas. */
+    if (panel && s && !menuBoleh(r.hal, s.peran)) {
+      var tujuan = s.peran === 'admin_rw' ? 'rw' : 'ringkas';
+      if (r.hal !== tujuan) { location.hash = '#/panel/' + tujuan; toast('Menu ini bukan untuk peran Anda', 'bahaya'); return; }
+    }
     document.body.classList.toggle('panel', panel);
     $('#merekSub').textContent = panel ? 'Panel pengurus' : 'Layanan warga';
     var bp = $('#btnPanel');
@@ -245,23 +410,33 @@
     $('#btnAtur').hidden = !panel; $('#btnAtur').innerHTML = ik('atur');
     if (panel) gambarNav(r.hal);
     var isi = $('#isi');
-    isi.innerHTML = '<div class="halaman">' + (panel ? HAL[r.hal](r.arg) : r.hal === 'usaha' ? halUsaha() : halPublik()) + '</div>';
+    isi.innerHTML = '<div class="halaman">' + (panel ? barPilihWilayah() + HAL[r.hal](r.arg) : r.hal === 'usaha' ? halUsaha() : HALPUB[r.hal] ? HALPUB[r.hal](r.arg) : halPublik()) + '</div>';
     stagger(isi);
     amatiMuncul(isi);
     tandaiBagian();
     if (bagianSorot) sorot(bagianSorot);
-    if (panel) { if (HAL[r.hal + 'Pasca']) HAL[r.hal + 'Pasca'](r.arg); } else if (r.hal === 'usaha') { halUsahaPasca(); }
+    if (panel) { pasangPilihWilayah(); if (HAL[r.hal + 'Pasca']) HAL[r.hal + 'Pasca'](r.arg); } else if (r.hal === 'usaha') { halUsahaPasca(); } else if (HALPUB[r.hal + 'Pasca']) { HALPUB[r.hal + 'Pasca'](r.arg); }
     hitungNaik(isi);
     if (halSebelum && halSebelum !== r.hal) { window.scrollTo(0, 0); isi.focus({ preventScroll: true }); }
     halSebelum = r.hal;
-    document.title = (panel ? MENU.filter(function (m) { return m.id === r.hal; })[0].label + ' · ' : r.hal === 'usaha' ? 'Usaha Warga · ' : '') + namaUsaha();
+    var judul = namaUsaha();
+    if (panel) judul = (cariMenu(r.hal) || { label: r.hal }).label + ' · ' + judul;
+    else if (r.hal === 'usaha') judul = 'Usaha Warga · ' + judul;
+    else if (TITEL_PUBLIK[r.hal]) judul = TITEL_PUBLIK[r.hal] + ' · ' + judul;
+    document.title = judul;
   }
   function gambarNav(aktif) {
-    var html = MENU.map(function (m) {
-      return '<a class="nav-item' + (m.id === 'pengaturan' ? ' nav-pisah pengaturan-nav' : '') + '" href="#/panel/' + m.id + '"' + (m.id === aktif ? ' aria-current="page"' : '') + '>' + ik(m.ikon) + '<span>' + m.label + '</span></a>';
-    }).join('');
-    $('#navSamping').innerHTML = html;
-    $('#navBawah').innerHTML = html;
+    var s = sesi();
+    var buat = function (daftar, pendek) {
+      return daftar.map(function (m) {
+        var kelas = m.id === 'akun' ? ' nav-pisah' : m.id === 'pengaturan' ? ' pengaturan-nav' : '';
+        return '<a class="nav-item' + kelas + '" href="#/panel/' + m.id + '"' + (m.id === aktif ? ' aria-current="page"' : '') + '>' + ik(m.ikon) + '<span>' + (pendek ? (m.labelPendek || m.label) : m.label) + '</span></a>';
+      }).join('');
+    };
+    var daftar = menuUntuk(s && s.peran);
+    $('#navSamping').innerHTML = buat(daftar, false);
+    /* Nav bawah HP: label pendek supaya 12 menu muat tanpa tumpang tindih. */
+    $('#navBawah').innerHTML = buat(daftar, true);
   }
   function stagger(root) { $$('.stagger', root).forEach(function (g) { Array.prototype.forEach.call(g.children, function (c, i) { c.style.setProperty('--i', Math.min(i, 14)); }); }); }
   /* T11: reveal saat masuk layar — satu observer, sekali tampil saja.
@@ -440,7 +615,7 @@
     var nunggak = D.kk.map(function (k) { return { k: k, t: tunggakan(k) }; }).filter(function (x) { return x.t.length; }).sort(function (a, c) { return c.t.length - a.t.length; });
     var jam = new Date().getHours(), sapa = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam';
     var ag = infoDatang().slice(0, 3);
-    return '<section class="sapa-kartu"><div><small>' + tglHari(hariIni()) + ' · ' + e(namaRT()) + '</small><h1>' + sapa + ', Pengurus</h1><p>' + (nunggak.length ? nunggak.length + ' KK perlu diingatkan iurannya' : 'Semua iuran lancar') + (ag.length ? ' · agenda berikutnya: ' + e(ag[0].judul) : '') + '.</p></div><div class="baris-aksi"><a class="btn" href="#/panel/warga/baru">' + ik('tambah') + 'Tambah KK</a><a class="btn btn-garis" href="#/panel/info/baru">' + ik('info') + 'Umumkan</a></div></section>' +
+    return '<section class="sapa-kartu"><div><small>' + tglHari(hariIni()) + ' · ' + e(namaRT()) + '</small><h1>' + sapa + ', ' + e((sesi() && sesi().nama) || 'Pengurus') + '</h1><p>' + (nunggak.length ? nunggak.length + ' KK perlu diingatkan iurannya' : 'Semua iuran lancar') + (ag.length ? ' · agenda berikutnya: ' + e(ag[0].judul) : '') + '.</p></div><div class="baris-aksi"><a class="btn" href="#/panel/warga/baru">' + ik('tambah') + 'Tambah KK</a><a class="btn btn-garis" href="#/panel/info/baru">' + ik('info') + 'Umumkan</a></div></section>' +
       '<div class="grid grid-4 stagger" style="margin-bottom:16px">' +
       '<div class="kartu stat p-hijau"><div class="label"><i>' + ik('warga') + '</i>Kepala keluarga</div><div class="nilai" data-hitung="' + D.kk.length + '">0</div><div class="sub">' + tetap + ' tetap · ' + (D.kk.length - tetap) + ' kontrak</div></div>' +
       '<div class="kartu stat p-kuning"><div class="label"><i>' + ik('jiwa') + '</i>Jumlah jiwa</div><div class="nilai" data-hitung="' + (l + p) + '">0</div><div class="sub">' + l + ' laki-laki · ' + p + ' perempuan</div></div>' +
@@ -518,6 +693,7 @@
       $('[data-ubah]', m).addEventListener('click', function () { tutupModal(function () { formKK(k); }); });
       $('[data-hapus]', m).addEventListener('click', function () {
         konfirmasi('Hapus KK ' + k.kepala + '?', 'Data anggota dan riwayat iurannya ikut terhapus. Transaksi kas tetap tersimpan.', 'Hapus', function () {
+          catatLog('hapus_kk', 'Hapus KK: ' + k.kepala + ' (' + k.alamat + ')');
           D.kk = D.kk.filter(function (x) { return x !== k; }); Object.keys(D.iuran).forEach(function (b) { delete D.iuran[b][k.id]; }); simpan(); render(); toast('KK ' + k.kepala + ' dihapus');
         });
       });
@@ -569,6 +745,7 @@
         if (galat) { var p = $('#galatKK', f); p.classList.remove('cap'); void p.offsetWidth; p.classList.add('cap'); return; }
         var data = { noKK: f.noKK.value.trim(), alamat: f.alamat.value.trim(), status: f.status.value, wa: f.wa.value.trim(), anggota: anggota, kepala: anggota[0].nama };
         if (baru) { data.id = idBaru('kk'); data.dibuat = hariIni(); D.kk.push(data); } else Object.assign(k, data);
+        catatLog(baru ? 'tambah_kk' : 'ubah_kk', (baru ? 'Tambah KK: ' : 'Ubah KK: ') + data.kepala + ' (' + data.alamat + ')');
         simpan(); tutupModal(); render(); toast(baru ? 'KK ' + data.kepala + ' ditambahkan' : 'Perubahan disimpan');
       });
     });
@@ -615,6 +792,9 @@
       if (l) {
         var id = l.dataset.lunas, jadi = !sudahBayar(iuranBulan, id), k = cariKK(id);
         setLunas(iuranBulan, id, jadi); gambarIuran();
+        /* setLunas ikut menambah/menghapus baris kas otomatis — yang dicatat
+           di sini hanya aksi iurannya. */
+        catatLog(jadi ? 'tambah_iuran' : 'hapus_iuran', (jadi ? 'Iuran lunas ' : 'Batal lunas ') + namaBulan(iuranBulan) + ' — ' + k.kepala);
         var tb = $('[data-lunas="' + id + '"]'); if (tb) { tb.classList.add('cap'); tb.focus(); }
         toast(jadi ? k.kepala + ' lunas ' + namaBulan(iuranBulan) + ' · masuk kas' : 'Status lunas ' + k.kepala + ' dibatalkan');
       }
@@ -673,13 +853,14 @@
       $$('[data-jenis]', m).forEach(function (b) { b.addEventListener('click', function () { jenis = b.dataset.jenis; $$('[data-jenis]', m).forEach(function (y) { y.setAttribute('aria-checked', y === b); y.setAttribute('aria-pressed', y === b); }); isiKat(); }); });
       var jml = $('#kJml', m);
       jml.addEventListener('input', function () { var v = this.value.replace(/\D/g, ''); this.value = v ? Number(v).toLocaleString('id-ID') : ''; });
-      if (!baru) $('[data-hapus]', m).addEventListener('click', function () { D.kas = D.kas.filter(function (y) { return y !== x; }); simpan(); tutupModal(); render(); toast('Transaksi dihapus'); });
+      if (!baru) $('[data-hapus]', m).addEventListener('click', function () { catatLog('hapus_kas', (x.jenis === 'masuk' ? 'Pemasukan ' : 'Pengeluaran ') + rp(x.jumlah) + ' — ' + x.ket); D.kas = D.kas.filter(function (y) { return y !== x; }); simpan(); tutupModal(); render(); toast('Transaksi dihapus'); });
       $('#fKas', m).addEventListener('submit', function (ev) {
         ev.preventDefault(); var f = ev.target, n = Number(f.jumlah.value.replace(/\D/g, ''));
         if (!n) { $('#galatKas', m).textContent = 'Jumlah harus lebih dari 0.'; jml.focus(); return; }
         if (!f.ket.value.trim()) { $('#galatKas', m).textContent = 'Keterangan wajib diisi.'; f.ket.focus(); return; }
         var data = { jenis: jenis, jumlah: n, tgl: f.tgl.value || hariIni(), kategori: f.kategori.value, ket: f.ket.value.trim() };
         if (baru) { data.id = idBaru('ks'); D.kas.push(data); } else Object.assign(x, data);
+        catatLog(baru ? 'tambah_kas' : 'ubah_kas', (jenis === 'masuk' ? 'Pemasukan ' : 'Pengeluaran ') + rp(n) + ' — ' + data.ket);
         simpan(); tutupModal(); render(); toast((jenis === 'masuk' ? 'Pemasukan ' : 'Pengeluaran ') + rp(n) + ' dicatat');
       });
     });
@@ -701,7 +882,7 @@
   function infoKlik(ev) {
     var u = ev.target.closest('[data-ubah-info]'), h = ev.target.closest('[data-hapus-info]');
     if (u) formInfo(D.info.filter(function (i) { return i.id === u.dataset.ubahInfo; })[0]);
-    if (h) { var i = D.info.filter(function (x) { return x.id === h.dataset.hapusInfo; })[0]; konfirmasi('Hapus "' + i.judul + '"?', 'Informasi ini akan hilang dari halaman publik.', 'Hapus', function () { D.info = D.info.filter(function (x) { return x !== i; }); simpan(); sinkronPublik('info'); render(); toast('Dihapus'); }); }
+    if (h) { var i = D.info.filter(function (x) { return x.id === h.dataset.hapusInfo; })[0]; konfirmasi('Hapus "' + i.judul + '"?', 'Informasi ini akan hilang dari halaman publik.', 'Hapus', function () { catatLog('hapus_info', 'Hapus ' + i.jenis + ': ' + i.judul); D.info = D.info.filter(function (x) { return x !== i; }); simpan(); sinkronPublik('info'); render(); toast('Dihapus'); }); }
   }
   function teksBagikan(i) {
     return '📢 *' + i.judul + '*\n' + namaRT() + ' · Kel. ' + D.pengaturan.kelurahan + '\n\n' + i.isi + '\n\n🗓️ ' + tglHari(i.tgl) + (i.jam ? '\n⏰ ' + i.jam + ' WIB' : '') + (i.tempat ? '\n📍 ' + i.tempat : '') + '\n\nTerima kasih. — Pengurus ' + namaRT();
@@ -724,6 +905,7 @@
         if (!f.judul.value.trim() || !f.isi.value.trim()) { (f.judul.value.trim() ? f.isi : f.judul).focus(); toast('Judul dan isi wajib diisi', 'bahaya'); return; }
         var data = { jenis: f.jenis.value, tgl: f.tgl.value || hariIni(), judul: f.judul.value.trim(), isi: f.isi.value.trim(), jam: f.jam.value, tempat: f.tempat.value.trim(), sematkan: f.sematkan.checked };
         if (baru) { data.id = idBaru('in'); D.info.push(data); } else Object.assign(i, data);
+        catatLog(baru ? 'tambah_info' : 'ubah_info', (baru ? 'Tambah ' : 'Ubah ') + data.jenis + ': ' + data.judul);
         simpan(); sinkronPublik('info'); tutupModal(); render(); toast('Tersimpan & tampil di halaman publik');
       });
     });
@@ -817,7 +999,9 @@
       if (D.nomorSurat.tahun !== th) D.nomorSurat = { tahun: th, urut: 0 };
       var s = { id: idBaru('sr'), no: nomorBerikut(), tgl: hariIni() };
       ['nama', 'nik', 'tempatLahir', 'tglLahir', 'jk', 'agama', 'kawin', 'pekerjaan', 'alamat', 'keperluan', 'ket'].forEach(function (k) { s[k] = f[k].value.trim(); });
-      D.nomorSurat.urut++; D.surat.push(s); simpan(); render(); pratinjauSurat(s); toast('Surat ' + s.no + ' dibuat');
+      D.nomorSurat.urut++; D.surat.push(s); simpan();
+      catatLog('tambah_surat', 'Surat ' + s.no + ' — ' + s.nama + ' (' + s.keperluan + ')');
+      render(); pratinjauSurat(s); toast('Surat ' + s.no + ' dibuat');
     });
     $('#isi').addEventListener('click', function (ev) { var b = ev.target.closest('[data-cetak-ulang]'); if (b) pratinjauSurat(D.surat.filter(function (s) { return s.id === b.dataset.cetakUlang; })[0]); });
   };
@@ -842,7 +1026,7 @@
   // --- Pengaturan
   HAL.pengaturan = function () {
     var p = D.pengaturan, t = Object.assign({ utama: css('--tema-utama'), aksen: css('--tema-aksen'), radius: parseInt(css('--tema-radius'), 10), font: css('--tema-font').split(',')[0].replace(/"/g, '').trim(), mode: TEMA.mode, nama: TEMA.nama }, tampilan);
-    return kepalaHal('Pengaturan', 'Identitas RT, tampilan, PIN, dan data') +
+    return kepalaHal('Pengaturan', 'Identitas RT, tampilan, dan data') +
       '<div class="grid grid-2" style="align-items:start"><div class="tumpuk">' +
       '<form class="kartu" id="fIdentitas"><h2>Identitas RT</h2><div class="form-grid">' +
       bid('pRt', 'Nomor RT', '<input id="pRt" name="rt" value="' + e(p.rt) + '" maxlength="3">') + bid('pRw', 'Nomor RW', '<input id="pRw" name="rw" value="' + e(p.rw) + '" maxlength="3">') +
@@ -860,7 +1044,6 @@
       bid('tFont', 'Huruf', '<select id="tFont" name="font">' + opsi(FONT, t.font) + '</select>') + bid('tMode', 'Mode', '<select id="tMode" name="mode"><option value="auto"' + (t.mode === 'auto' ? ' selected' : '') + '>Ikuti perangkat</option><option value="terang"' + (t.mode === 'terang' ? ' selected' : '') + '>Terang</option><option value="gelap"' + (t.mode === 'gelap' ? ' selected' : '') + '>Gelap</option></select>') + '</div>' +
       bid('tRadius', 'Sudut membulat: <output id="oRadius">' + t.radius + 'px</output>', '<input id="tRadius" name="radius" type="range" min="0" max="24" value="' + t.radius + '" style="padding:0">') +
       '<div class="baris-aksi"><button class="btn" type="submit">' + ik('cek') + 'Simpan tampilan</button><button class="btn btn-garis" type="button" id="resetTampilan">Kembalikan bawaan</button></div></form>' +
-      '<form class="kartu" id="fPin"><h2>PIN panel pengurus</h2><div class="form-grid">' + bid('pinLama', 'PIN lama', '<input id="pinLama" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">') + bid('pinBaru', 'PIN baru (4–6 angka)', '<input id="pinBaru" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') + '</div><button class="btn" type="submit">' + ik('kunci') + 'Ganti PIN</button><p style="color:var(--redup);font-size:13px;margin:10px 0 0">PIN hanya mengunci tampilan di perangkat ini, bukan pengamanan server.</p></form>' +
       '<section class="kartu"><h2>Data & cadangan</h2><p style="color:var(--redup);margin:0 0 12px;font-size:14px">Data tersimpan di browser perangkat ini. Rutin unduh cadangan JSON supaya aman.</p><div class="baris-aksi" style="margin-bottom:10px">' +
       '<button class="btn" id="cadangan">' + ik('unduh') + 'Unduh cadangan JSON</button><label class="btn btn-garis" for="impJson" style="margin:0">' + ik('unggah') + 'Pulihkan JSON</label><input type="file" id="impJson" accept=".json,application/json" class="sr"></div>' +
       '<div class="baris-aksi" style="margin-bottom:10px"><button class="btn btn-garis btn-kecil" data-csv="warga">CSV warga</button><button class="btn btn-garis btn-kecil" data-csv="kas">CSV kas</button><button class="btn btn-garis btn-kecil" data-csv="iuran">CSV iuran</button>' +
@@ -927,12 +1110,6 @@
     fT.addEventListener('submit', function (ev) { ev.preventDefault(); tampilan = bacaT(); try { localStorage.setItem(KUNCI_TAMPILAN, JSON.stringify(tampilan)); } catch (x) {} toast('Tampilan disimpan'); });
     $('#resetTampilan').addEventListener('click', function () { try { localStorage.removeItem(KUNCI_TAMPILAN); } catch (x) {} tampilan = {}; document.documentElement.removeAttribute('style'); terapkan({ mode: TEMA.mode, nama: TEMA.nama, font: 'Nunito' }); render(); toast('Tampilan kembali ke bawaan'); });
 
-    $('#fPin').addEventListener('submit', function (ev) {
-      ev.preventDefault(); var l = $('#pinLama').value, b = $('#pinBaru').value;
-      if (l !== String(D.pengaturan.pin)) { toast('PIN lama salah', 'bahaya'); $('#pinLama').focus(); return; }
-      if (!/^\d{4,6}$/.test(b)) { toast('PIN baru harus 4–6 angka', 'bahaya'); $('#pinBaru').focus(); return; }
-      D.pengaturan.pin = b; simpan(); ev.target.reset(); toast('PIN diganti');
-    });
     $('#cadangan').addEventListener('click', function () { unduh('cadangan-rt-' + hariIni() + '.json', JSON.stringify(D, null, 2), 'application/json'); toast('Cadangan diunduh'); });
     $('#impJson').addEventListener('change', function () {
       bacaBerkas(this, function (teks) {
@@ -943,15 +1120,864 @@
     });
     $('#impWarga').addEventListener('change', function () { bacaBerkas(this, imporWarga); });
     $('#impKas').addEventListener('change', function () { bacaBerkas(this, imporKas); });
-    $('#isiContoh').addEventListener('click', function () { konfirmasi('Muat data contoh?', 'Semua data sekarang diganti data contoh RT 07/RW 13. Unduh cadangan dulu kalau perlu.', 'Muat contoh', function () { var pin = D.pengaturan.pin; D = migrasi(window.buatDataContoh()); D.pengaturan.pin = pin; simpan(); render(); toast('Data contoh dimuat'); }); });
+    $('#isiContoh').addEventListener('click', function () { konfirmasi('Muat data contoh?', 'Semua data sekarang diganti data contoh RT 07/RW 13. Unduh cadangan dulu kalau perlu.', 'Muat contoh', function () { D = migrasi(window.buatDataContoh()); simpan(); render(); toast('Data contoh dimuat'); }); });
     $('#kosongkan').addEventListener('click', function () {
-      konfirmasi('Kosongkan semua data?', 'Data warga, iuran, kas, info, dan surat dihapus dari perangkat ini. Identitas RT & PIN tetap. Tindakan ini tidak bisa dibatalkan.', 'Kosongkan', function () {
+      konfirmasi('Kosongkan semua data?', 'Data warga, iuran, kas, info, dan surat dihapus dari perangkat ini. Identitas RT tetap. Tindakan ini tidak bisa dibatalkan.', 'Kosongkan', function () {
         D = migrasi({ pengaturan: D.pengaturan, pengurus: D.pengurus }); simpan(); render(); toast('Semua data dikosongkan');
       });
     });
   };
 
-  /* ========== 7. Modal, konfirmasi, toast, PIN ========== */
+  /* ========== 6b. Auth publik & Akun saya (PIN/akun Supabase) ========== */
+  var TITEL_PUBLIK = { masuk: 'Masuk panel pengurus', daftar: 'Daftar sebagai pengurus', 'daftar-wilayah': 'Daftarkan wilayah', disclaimer: 'Disclaimer', 'lupa-pin': 'Lupa PIN', 'rw-publik': 'Halaman RW' };
+  var HALPUB = {};
+  /* Kartu sempit di tengah, pakai komponen yang sudah ada (.kartu, .form-grid,
+     .bidang, .btn, .lencana) — tanpa gaya baru. */
+  function kartuAuth(judul, sub, isiHtml) {
+    return '<div style="max-width:560px;margin:0 auto"><a class="btn btn-garis btn-kecil" href="#/">' + ik('kiri') + 'Beranda</a>' +
+      '<div class="kartu" style="margin-top:16px"><h1 style="font-size:22px;margin-bottom:6px">' + judul + '</h1>' +
+      (sub ? '<p style="color:var(--redup);margin:0 0 16px">' + sub + '</p>' : '') + isiHtml + '</div></div>';
+  }
+
+  /* --- Masuk baru: wilayah -> nama -> PIN (verifikasi_pin). PIN salah:
+     "PIN salah, coba lagi". PIN lama 1234 TIDAK berlaku lagi. --- */
+  HALPUB.masuk = function () {
+    return kartuAuth('Masuk panel pengurus', 'Pilih wilayah, lalu nama Anda, lalu ketik PIN.',
+      '<form id="fMasuk"><div class="form-grid">' +
+      bid('mWilayah', 'Wilayah', '<select id="mWilayah" name="wilayah"><option value="">Memuat wilayah…</option></select>') +
+      bid('mNama', 'Nama pengurus', '<select id="mNama" name="nama" disabled><option value="">Pilih wilayah dulu</option></select>') + '</div>' +
+      bid('mPin', 'PIN (4–6 angka)', '<input id="mPin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">') +
+      '<p id="galatMasuk" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<button class="btn" type="submit">' + ik('kunci') + 'Masuk panel</button></form>' +
+      '<div class="baris-aksi" style="margin-top:16px"><a class="btn btn-garis btn-kecil" href="#/lupa-pin">Lupa PIN</a><a class="btn btn-garis btn-kecil" href="#/daftar">Daftar sebagai pengurus</a></div>' +
+      '<p style="color:var(--redup);font-size:13px;margin:14px 0 0">Wilayah belum terdaftar? <a href="#/daftar-wilayah">Daftarkan wilayah RT/RW</a>.</p>');
+  };
+  HALPUB.masukPasca = function () {
+    var f = $('#fMasuk'), galat = $('#galatMasuk');
+    muatWilayah().then(function () { aturHtml('mWilayah', opsiWilayah('')); })
+      .catch(function () {
+        aturHtml('mWilayah', '<option value="">Tidak bisa memuat wilayah</option>');
+        if (galat) galat.textContent = 'Tidak bisa terhubung ke server. Periksa internet lalu muat ulang halaman.';
+      });
+    $('#mWilayah').addEventListener('change', function () {
+      var w = this.value, sel = $('#mNama');
+      sel.innerHTML = '<option value="">Memuat…</option>'; sel.disabled = true;
+      if (!w) { sel.innerHTML = '<option value="">Pilih wilayah dulu</option>'; return; }
+      sbRpc('daftar_pengurus_aktif', { p_wilayah_id: w }).then(function (rows) {
+        rows = rows || [];
+        sel.innerHTML = rows.length ? '<option value="">— Pilih nama —</option>' + rows.map(function (p) {
+          return '<option value="' + e(p.nama) + '">' + e(p.nama) + ' — ' + e(p.jabatan) + '</option>';
+        }).join('') : '<option value="">Belum ada pengurus aktif di wilayah ini</option>';
+        sel.disabled = !rows.length;
+      }).catch(function () { sel.innerHTML = '<option value="">Gagal memuat daftar nama</option>'; });
+    });
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      galat.textContent = '';
+      var w = f.wilayah.value, nama = f.nama.value, pin = f.pin.value;
+      if (!w) { galat.textContent = 'Pilih wilayah dulu.'; return; }
+      if (!nama) { galat.textContent = 'Pilih nama Anda.'; return; }
+      if (!/^\d{4,6}$/.test(pin)) { galat.textContent = 'PIN harus 4–6 angka.'; $('#mPin').focus(); return; }
+      sbRpc('verifikasi_pin', { p_nama: nama, p_pin: pin, p_wilayah_id: w }).then(function (rows) {
+        var p = (rows || [])[0];
+        if (!p) { galat.textContent = 'PIN salah, coba lagi.'; f.pin.value = ''; $('#mPin').focus(); return; }
+        terbuka = true;
+        try { sessionStorage.setItem('website-rt-buka', '1'); } catch (x) {}
+        /* verifikasi_pin mengembalikan token sesi (64 hex, 8 jam) — simpan
+           di sessionStorage bersama data sesi, JANGAN di localStorage. */
+        tokenTervalidasiUntuk = p.token || '';
+        simpanSesi({ id: p.id, nama: p.nama, jabatan: p.jabatan, peran: p.peran, wilayah_id: p.wilayah_id, pin_sementara: !!p.pin_sementara, token: p.token || '' });
+        catatLog('masuk', 'Masuk panel');
+        toast('Selamat datang, ' + p.nama);
+        location.hash = '#/panel/ringkas';
+      }).catch(function () { galat.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+    });
+  };
+
+  /* --- Pendaftaran pengurus: hash PIN + kode pemulihan dihitung server
+     (RPC daftar_pengurus). Kode pemulihan tampil SEKALI saja. --- */
+  var JABATAN_DAFTAR = ['Ketua RT', 'Sekretaris', 'Bendahara', 'Sie Keamanan', 'Lainnya'];
+  HALPUB.daftar = function () {
+    return kartuAuth('Daftar sebagai pengurus', 'Pendaftaran menunggu persetujuan Admin RT. Sesudah disetujui, PIN Anda langsung bisa dipakai masuk.',
+      '<form id="fDaftar"><div class="form-grid">' +
+      bid('dWilayah', 'Wilayah', '<select id="dWilayah" name="wilayah"><option value="">Memuat wilayah…</option></select>') +
+      bid('dNama', 'Nama lengkap', '<input id="dNama" name="nama" autocomplete="off">') +
+      bid('dJabatan', 'Jabatan', '<select id="dJabatan" name="jabatan">' + opsi(JABATAN_DAFTAR, 'Sekretaris') + '</select>') +
+      bid('dWa', 'No. WhatsApp', '<input id="dWa" name="wa" inputmode="tel" placeholder="0812…">') +
+      bid('dEmail', 'Email', '<input id="dEmail" name="email" type="email" placeholder="nama@email.com">') +
+      bid('dKode', 'Kode verifikasi RW (boleh kosong)', '<input id="dKode" name="kode" autocomplete="off">', 'Kode dibagikan Ketua RW ke RT-nya. Kosongkan bila RW belum ada.') + '</div>' +
+      '<div class="form-grid">' +
+      bid('dPin', 'Buat PIN (4–6 angka)', '<input id="dPin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') +
+      bid('dPin2', 'Ketik ulang PIN', '<input id="dPin2" name="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') + '</div>' +
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin:4px 0 14px"><input type="checkbox" id="dSetuju" style="width:20px;height:20px;margin-top:2px;flex:none"> <span>Saya setuju dengan <a href="#/disclaimer">disclaimer</a>.</span></label>' +
+      '<p id="galatDaftar" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<button class="btn" type="submit">' + ik('cek') + 'Kirim pendaftaran</button></form>' +
+      '<div id="hasilDaftar"></div>');
+  };
+  HALPUB.daftarPasca = function () {
+    var f = $('#fDaftar'), galat = $('#galatDaftar');
+    muatWilayah().then(function () { aturHtml('dWilayah', opsiWilayah('')); })
+      .catch(function () { aturHtml('dWilayah', '<option value="">Tidak bisa memuat wilayah</option>'); });
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      galat.textContent = '';
+      var w = f.wilayah.value, nama = f.nama.value.trim(), jab = f.jabatan.value,
+        wa = f.wa.value.trim(), email = f.email.value.trim(), kode = f.kode.value.trim(),
+        pin = f.pin.value, pin2 = f.pin2.value;
+      if (!w) { galat.textContent = 'Pilih wilayah dulu.'; return; }
+      if (!nama) { galat.textContent = 'Nama wajib diisi.'; $('#dNama').focus(); return; }
+      if (!wa) { galat.textContent = 'No. WhatsApp wajib diisi.'; $('#dWa').focus(); return; }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { galat.textContent = 'Format email tidak benar.'; $('#dEmail').focus(); return; }
+      if (!/^\d{4,6}$/.test(pin)) { galat.textContent = 'PIN harus 4–6 angka.'; $('#dPin').focus(); return; }
+      if (pin !== pin2) { galat.textContent = 'PIN dan ketik ulang tidak sama.'; $('#dPin2').focus(); return; }
+      if (!$('#dSetuju').checked) { galat.textContent = 'Centang persetujuan disclaimer dulu.'; return; }
+      sbRpc('daftar_pengurus', { p_nama: nama, p_jabatan: jab, p_wa: waNomor(wa), p_email: email, p_kode_verifikasi: kode, p_pin: pin, p_wilayah_id: w })
+        .then(function (kodePemulihan) {
+          catatLog('daftar_pengurus', 'Pendaftaran pengurus: ' + nama);
+          f.style.display = 'none';
+          aturHtml('hasilDaftar', '<div style="text-align:center;padding:8px 0"><span class="lencana">Menunggu persetujuan Admin RT</span>' +
+            '<p style="margin:14px 0 6px">Kode pemulihan Anda — <b>hanya tampil sekali</b>:</p>' +
+            '<div class="mono" style="font-size:32px;font-weight:900;letter-spacing:6px;margin:8px 0">' + e(kodePemulihan) + '</div>' +
+            '<p style="color:var(--redup)">Simpan kode ini, hanya tampil sekali. Kode ini dipakai bila Anda lupa PIN.</p>' +
+            '<div class="baris-aksi" style="justify-content:center"><button class="btn btn-garis" type="button" id="salinKode">' + ik('bagikan') + 'Salin kode</button><a class="btn" href="#/masuk">Ke halaman masuk</a></div></div>');
+          var sk2 = $('#salinKode'); if (sk2) sk2.addEventListener('click', function () { salin(kodePemulihan, 'Kode pemulihan disalin'); });
+        })
+        .catch(function (x) { galat.textContent = (x && x.message) || 'Pendaftaran gagal. Coba lagi.'; });
+    });
+  };
+
+  /* --- Pendaftaran wilayah: INSERT via RLS anon (status='menunggu'). --- */
+  HALPUB['daftar-wilayah'] = function () {
+    return kartuAuth('Daftarkan wilayah', 'RT atau RW baru. Pendaftaran menunggu persetujuan — RW memverifikasi RT di bawahnya, atau Superadmin bila RW belum ada.',
+      '<form id="fWilayah"><div class="form-grid">' +
+      bid('wJenis', 'Jenis wilayah', '<select id="wJenis" name="jenis"><option value="rt">RT</option><option value="rw">RW</option></select>') +
+      bid('wNomor', 'Nomor (contoh: 07)', '<input id="wNomor" name="nomor" maxlength="3" inputmode="numeric">') +
+      bid('wKel', 'Kelurahan / desa', '<input id="wKel" name="kelurahan">') +
+      bid('wKec', 'Kecamatan', '<input id="wKec" name="kecamatan">') +
+      bid('wKota', 'Kota / kabupaten', '<input id="wKota" name="kota">') +
+      bid('wProv', 'Provinsi', '<input id="wProv" name="provinsi">') + '</div>' +
+      '<div class="form-grid">' +
+      bid('wKetua', 'Nama Ketua', '<input id="wKetua" name="ketua" autocomplete="off">') +
+      bid('wWa', 'WA Ketua', '<input id="wWa" name="wa" inputmode="tel" placeholder="0812…">') +
+      bid('wEmail', 'Email Ketua', '<input id="wEmail" name="email" type="email" placeholder="nama@email.com">') + '</div>' +
+      '<div id="wadahRwInduk"><div class="form-grid">' +
+      bid('wRw', 'RW induk', '<select id="wRw" name="rw"><option value="">Memuat RW…</option></select>') + '</div>' +
+      '<p id="catatanRw" style="color:var(--redup);font-size:13px;margin:0 0 14px"></p></div>' +
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin:4px 0 14px"><input type="checkbox" id="wSetuju" style="width:20px;height:20px;margin-top:2px;flex:none"> <span>Saya setuju dengan <a href="#/disclaimer">disclaimer</a>.</span></label>' +
+      '<p id="galatWilayah" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<button class="btn" type="submit">' + ik('cek') + 'Kirim pendaftaran wilayah</button></form>' +
+      '<div id="hasilWilayah"></div>');
+  };
+  HALPUB['daftar-wilayahPasca'] = function () {
+    var f = $('#fWilayah'), galat = $('#galatWilayah');
+    muatWilayah().then(function (semua) {
+      var rw = semua.filter(function (w) { return w.jenis === 'rw'; });
+      aturHtml('wRw', rw.length ? '<option value="">— Pilih RW induk —</option>' + rw.map(function (w) {
+        return '<option value="' + e(w.id) + '">' + e(labelWilayah(w)) + '</option>';
+      }).join('') : '<option value="">Belum ada RW</option>');
+      var ct = $('#catatanRw'); if (ct) ct.textContent = rw.length ? '' : 'RW belum ada — persetujuan oleh Superadmin.';
+    }).catch(function () { aturHtml('wRw', '<option value="">Tidak bisa memuat RW</option>'); });
+    $('#wJenis').addEventListener('change', function () {
+      $('#wadahRwInduk').style.display = this.value === 'rt' ? '' : 'none';
+    });
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      galat.textContent = '';
+      var jenis = f.jenis.value, nomor = f.nomor.value.trim(), kel = f.kelurahan.value.trim(),
+        kec = f.kecamatan.value.trim(), kota = f.kota.value.trim(), prov = f.provinsi.value.trim(),
+        ketua = f.ketua.value.trim(), wa = f.wa.value.trim(), email = f.email.value.trim(),
+        rwId = f.jenis.value === 'rt' ? f.rw.value : '';
+      if (!/^\d{1,3}$/.test(nomor)) { galat.textContent = 'Nomor wilayah wajib diisi (angka).'; $('#wNomor').focus(); return; }
+      if (!kel) { galat.textContent = 'Kelurahan wajib diisi.'; $('#wKel').focus(); return; }
+      if (!ketua) { galat.textContent = 'Nama Ketua wajib diisi.'; $('#wKetua').focus(); return; }
+      if (!wa) { galat.textContent = 'WA Ketua wajib diisi.'; $('#wWa').focus(); return; }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { galat.textContent = 'Format email Ketua tidak benar.'; $('#wEmail').focus(); return; }
+      if (!$('#wSetuju').checked) { galat.textContent = 'Centang persetujuan disclaimer dulu.'; return; }
+      var rwDipilih = rwId ? cariWilayah(rwId) : null;
+      var slug = slugWilayah(kel);
+      var id = jenis === 'rw' ? 'rw' + nomor + '-' + slug
+        : (rwDipilih ? 'rt' + nomor + '-rw' + rwDipilih.nomor + '-' + slug : 'rt' + nomor + '-' + slug);
+      var c = sb();
+      if (!c) { galat.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; return; }
+      c.from('wilayah').insert({
+        id: id, jenis: jenis, nomor: nomor, kelurahan: kel, kecamatan: kec, kota: kota, provinsi: prov,
+        ketua_nama: ketua, ketua_wa: waNomor(wa), ketua_email: email,
+        rw_induk_id: rwId || null, kode_verifikasi: null, status: 'menunggu'
+      }).then(function (r) {
+        if (r.error) {
+          galat.textContent = /duplicate|already exists/i.test(r.error.message) ? 'Wilayah ini sudah terdaftar.' : r.error.message;
+          return;
+        }
+        catatLog('daftar_wilayah', 'Pendaftaran wilayah: ' + (jenis === 'rt' ? 'RT ' : 'RW ') + nomor + ' Kel. ' + kel);
+        f.style.display = 'none';
+        aturHtml('hasilWilayah', '<div style="text-align:center;padding:8px 0"><span class="lencana">Menunggu persetujuan</span>' +
+          '<p style="margin:14px 0 6px">Pendaftaran <b>' + e(jenis === 'rt' ? 'RT ' + nomor : 'RW ' + nomor) + ' Kel. ' + e(kel) + '</b> sudah dikirim.</p>' +
+          '<p style="color:var(--redup)">Alurnya: ' + (jenis === 'rt'
+            ? (rwDipilih ? 'Ketua RW (' + e(rwDipilih.ketua_nama || 'RW ' + rwDipilih.nomor) + ') memverifikasi RT ini.' : 'Belum ada RW induk — Superadmin yang menyetujui.')
+            : 'Superadmin yang menyetujui RW baru.') + ' Sesudah disetujui, pengurus bisa daftar dan masuk panel.</p>' +
+          '<div class="baris-aksi" style="justify-content:center"><a class="btn" href="#/">Kembali ke beranda</a></div></div>');
+      }).catch(function () { galat.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+    });
+  };
+
+  /* --- Lupa PIN: WA ke Pak RT (format siap kirim, gratis) + pakai kode
+     pemulihan lewat RPC wilayah (nama + wilayah_id, bukan nama saja). --- */
+  HALPUB['lupa-pin'] = function () {
+    return kartuAuth('Lupa PIN', 'Minta reset ke Pak RT lewat WhatsApp, atau pakai kode pemulihan Anda.',
+      '<div class="form-grid">' +
+      bid('lWilayah', 'Wilayah', '<select id="lWilayah"><option value="">Memuat wilayah…</option></select>') +
+      bid('lNama', 'Nama pengurus', '<select id="lNama" disabled><option value="">Pilih wilayah dulu</option></select>') + '</div>' +
+      '<div id="lupaWa"></div>' +
+      '<hr style="border:none;border-top:1px solid var(--garis);margin:18px 0">' +
+      '<h2 style="font-size:16px;margin:0 0 12px">Pakai kode pemulihan</h2>' +
+      '<form id="fPulih"><div class="form-grid">' +
+      bid('lKode', 'Kode pemulihan', '<input id="lKode" name="kode" autocomplete="off" style="text-transform:uppercase">') +
+      bid('lPin', 'PIN baru (4–6 angka)', '<input id="lPin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') +
+      bid('lPin2', 'Ketik ulang PIN baru', '<input id="lPin2" name="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') + '</div>' +
+      '<p id="galatPulih" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<button class="btn" type="submit">Buat PIN baru</button></form>' +
+      '<p style="color:var(--redup);font-size:13px;margin:14px 0 0">Kode pemulihan hanya tampil sekali saat pendaftaran. Bila kode sudah dipakai, minta reset ke Pak RT di atas.</p>');
+  };
+  HALPUB['lupa-pinPasca'] = function () {
+    var galat = $('#galatPulih'), daftarNama = [];
+    /* Cache daftar wilayah satu sesi SPA bisa basi bila ketua_wa diubah
+       dari luar sesi ini — segarkan dulu sebelum tampilkan nomor/form. */
+    segarkanWilayah();
+    muatWilayah().then(function () { aturHtml('lWilayah', opsiWilayah('')); })
+      .catch(function () { aturHtml('lWilayah', '<option value="">Tidak bisa memuat wilayah</option>'); });
+    function gambarWa() {
+      var w = cariWilayah($('#lWilayah').value), nama = $('#lNama').value, wadah = $('#lupaWa');
+      if (!wadah) return;
+      if (!w || !nama) { wadah.innerHTML = ''; return; }
+      var p = daftarNama.filter(function (x) { return x.nama === nama; })[0] || { jabatan: 'Pengurus', peran: 'pengurus' };
+      /* F8: Admin RT / Superadmin yang lupa PIN WA-nya ke Superadmin, BUKAN
+         ke Pak RT (tidak bisa reset diri sendiri). Nomor WA Superadmin
+         TIDAK ADA di RPC anon mana pun — satu-satunya sumber publik adalah
+         ketua_wa wilayah, dan itu hanya dipakai bila ketuanya memang Masdan
+         (Superadmin, PRD bag. 5). Bila kosong: pesan yang disepakati. */
+      if (p.peran === 'admin_rt' || p.peran === 'superadmin') {
+        var waSuper = (w.ketua_nama === 'Masdan' && w.ketua_wa) ? w.ketua_wa : '';
+        if (!waSuper) {
+          wadah.innerHTML = '<p style="color:var(--bahaya);font-weight:700">Nomor WA Superadmin belum diisi — hubungi Masdan langsung</p>' +
+            '<p style="color:var(--redup)">Admin RT / Superadmin yang lupa PIN tidak bisa reset sendiri dari web ini. Minta Masdan mereset dari panel, atau pakai kode pemulihan di bawah bila masih ada.</p>';
+          return;
+        }
+        var teksS = pesanLupaPinSuperadmin(nama, p.jabatan, w);
+        wadah.innerHTML = '<p style="margin:0 0 10px">Pesan WhatsApp siap kirim ke Superadmin (Masdan):</p>' +
+          '<p style="background:var(--permukaan-2);border:1px solid var(--garis);border-radius:12px;padding:12px;margin:0 0 12px">“' + e(teksS) + '”</p>' +
+          '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + waLink(waSuper, teksS) + '">' + ik('wa') + 'Buka WhatsApp ke Superadmin</a>';
+        return;
+      }
+      if (!w.ketua_wa) {
+        wadah.innerHTML = '<p style="color:var(--bahaya);font-weight:700">Nomor WA Pak RT belum diisi di data wilayah — hubungi Pak RT langsung untuk minta reset PIN.</p>' +
+          '<p style="color:var(--redup)">Bila kode pemulihan Anda masih ada, pakai formulir di bawah untuk membuat PIN baru tanpa menunggu Pak RT.</p>';
+        return;
+      }
+      var teks = pesanLupaPin(nama, p.jabatan, w);
+      wadah.innerHTML = '<p style="margin:0 0 10px">Pesan WhatsApp siap kirim ke Pak RT (' + e(w.ketua_nama || 'Ketua RT') + '):</p>' +
+        '<p style="background:var(--permukaan-2);border:1px solid var(--garis);border-radius:12px;padding:12px;margin:0 0 12px">“' + e(teks) + '”</p>' +
+        '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + waLink(w.ketua_wa, teks) + '">' + ik('wa') + 'Buka WhatsApp ke Pak RT</a>';
+    }
+    $('#lWilayah').addEventListener('change', function () {
+      var w = this.value, sel = $('#lNama');
+      sel.innerHTML = '<option value="">Memuat…</option>'; sel.disabled = true; daftarNama = []; gambarWa();
+      if (!w) { sel.innerHTML = '<option value="">Pilih wilayah dulu</option>'; return; }
+      sbRpc('daftar_pengurus_aktif', { p_wilayah_id: w }).then(function (rows) {
+        daftarNama = rows || [];
+        sel.innerHTML = daftarNama.length ? '<option value="">— Pilih nama —</option>' + daftarNama.map(function (p) {
+          return '<option value="' + e(p.nama) + '">' + e(p.nama) + ' — ' + e(p.jabatan) + '</option>';
+        }).join('') : '<option value="">Belum ada pengurus aktif di wilayah ini</option>';
+        sel.disabled = !daftarNama.length;
+      }).catch(function () { sel.innerHTML = '<option value="">Gagal memuat daftar nama</option>'; });
+    });
+    $('#lNama').addEventListener('change', gambarWa);
+    $('#fPulih').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      galat.textContent = '';
+      var w = $('#lWilayah').value, nama = $('#lNama').value,
+        kode = $('#lKode').value.trim().toUpperCase(), pin = $('#lPin').value, pin2 = $('#lPin2').value;
+      if (!w) { galat.textContent = 'Pilih wilayah dulu.'; return; }
+      if (!nama) { galat.textContent = 'Pilih nama Anda.'; return; }
+      if (!kode) { galat.textContent = 'Kode pemulihan wajib diisi.'; $('#lKode').focus(); return; }
+      if (!/^\d{4,6}$/.test(pin)) { galat.textContent = 'PIN baru harus 4–6 angka.'; $('#lPin').focus(); return; }
+      if (pin !== pin2) { galat.textContent = 'PIN baru dan ketik ulang tidak sama.'; $('#lPin2').focus(); return; }
+      sbRpc('pakai_kode_pemulihan_wilayah', { p_nama: nama, p_wilayah_id: w, p_kode: kode, p_pin_baru: pin }).then(function (ok) {
+        if (!ok) { galat.textContent = 'Kode pemulihan salah, coba lagi.'; return; }
+        catatLog('pakai_kode_pemulihan', 'PIN dipulihkan dengan kode pemulihan: ' + nama);
+        ev.target.style.display = 'none';
+        galat.textContent = '';
+        $('#fPulih').insertAdjacentHTML('afterend', '<p style="margin:0"><span class="lencana">PIN baru berhasil dibuat</span></p><p style="margin:12px 0">Silakan masuk dengan PIN baru Anda.</p><a class="btn" href="#/masuk">Masuk panel</a>');
+      }).catch(function () { galat.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+    });
+  };
+
+  /* --- Disclaimer: 6 aturan (kata-kata disetujui Masdan, rekap 24 Nov 2026). --- */
+  var ATURAN_DISCLAIMER = [
+    'Superadmin hanya menyetujui wilayah masuk.',
+    'Isi dan kebenaran data tanggung jawab RT/RW masing-masing.',
+    'PIN dan email tanggung jawab pemilik akun, jangan dibagikan ke orang lain.',
+    'Pengumuman publik jangan berisi data pribadi seperti NIK atau nama warga yang nunggak.',
+    'Superadmin berhak menonaktifkan wilayah yang menyalahgunakan web.',
+    'Penindakan tetap offline lewat musyawarah, web ini hanya memudahkan informasi antar warga.'
+  ];
+  HALPUB.disclaimer = function () {
+    return kartuAuth('Disclaimer', 'Aturan pakai Website RT/RW.',
+      '<ol style="margin:0;padding-left:20px;display:grid;gap:10px">' + ATURAN_DISCLAIMER.map(function (a) { return '<li>' + e(a) + '</li>'; }).join('') + '</ol>');
+  };
+
+  /* --- Akun saya (menu panel baru): profil, ganti PIN, kode pemulihan, keluar.
+     KOREKSI koordinator (PRD-v4): kode pemulihan lama TIDAK BISA ditampilkan
+     (hanya hash di server) — tampilkan hanya STATUS kode + tombol buat kode
+     baru. Ganti PIN pindah ke sini dari Pengaturan. --- */
+  HAL.akun = function () {
+    var s = sesi() || {};
+    return kepalaHal('Akun saya', e(s.nama || '') + (s.jabatan ? ' · ' + e(s.jabatan) : '') + (s.peran ? ' · ' + e(s.peran) : '')) +
+      '<div class="grid grid-2" style="align-items:start"><div class="tumpuk">' +
+      '<section class="kartu"><h2>Profil</h2><div id="profilAkun"><p style="color:var(--redup)">Memuat profil…</p></div></section>' +
+      '<section class="kartu"><h2>Kode pemulihan</h2><div id="kodeAkun"><p style="color:var(--redup)">Memuat status kode…</p></div>' +
+      '<p style="color:var(--redup);font-size:13px;margin:12px 0 0">Kode pemulihan lama tidak bisa ditampilkan lagi — hanya tersimpan sebagai hash di server. Buat kode baru bila kode lama hilang.</p></section>' +
+      '</div><div class="tumpuk">' +
+      '<form class="kartu" id="fGantiPin"><h2>Ganti PIN</h2><div class="form-grid">' +
+      bid('gLama', 'PIN lama', '<input id="gLama" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">') +
+      bid('gBaru', 'PIN baru (4–6 angka)', '<input id="gBaru" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') +
+      bid('gBaru2', 'Ketik ulang PIN baru', '<input id="gBaru2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password">') + '</div>' +
+      '<p id="galatGanti" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<button class="btn" type="submit">' + ik('kunci') + 'Ganti PIN</button></form>' +
+      '<section class="kartu"><h2>Keluar</h2><p style="color:var(--redup);margin:0 0 12px;font-size:14px">Keluar dari panel pengurus di perangkat ini.</p><button class="btn btn-garis" id="btnKeluarAkun">' + ik('keluar') + 'Keluar dari panel</button></section>' +
+      '</div></div>';
+  };
+  HAL.akunPasca = function () {
+    var s = sesi(); if (!s) return;
+    muatWilayah().catch(function () {}).then(function () { return sbRpc('profil_pengurus', { p_token: tokenSesi() }); })
+      .then(function (rows) {
+        var p = (rows || [])[0], w = cariWilayah(s.wilayah_id);
+        if (!p) { aturHtml('profilAkun', '<p>Profil tidak ditemukan.</p>'); return; }
+        aturHtml('profilAkun', '<dl style="margin:0;display:grid;gap:8px">' +
+          [['Nama', p.nama], ['Jabatan', p.jabatan], ['Peran', p.peran], ['Wilayah', w ? labelWilayah(w) : p.wilayah_id], ['WhatsApp', p.wa || '-'], ['Email', p.email || '-']].map(function (r) {
+            return '<div style="display:flex;gap:10px"><dt style="width:90px;color:var(--redup);flex:none">' + r[0] + '</dt><dd style="margin:0;font-weight:700">' + e(r[1]) + '</dd></div>';
+          }).join('') + '</dl>');
+        if (p.ada_kode) {
+          aturHtml('kodeAkun', '<p><span class="lencana">Kode masih berlaku</span></p>' +
+            '<form id="fKodeBaru"><div class="form-grid">' + bid('kPin', 'Ketik PIN Anda', '<input id="kPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">') + '</div>' +
+            '<p id="galatKode" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+            '<button class="btn btn-garis" type="submit">Buat kode pemulihan baru</button></form><div id="hasilKode"></div>');
+          var fk = $('#fKodeBaru');
+          if (fk) fk.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            var pin = $('#kPin').value;
+            if (!/^\d{4,6}$/.test(pin)) { $('#galatKode').textContent = 'PIN harus 4–6 angka.'; return; }
+            sbRpc('buat_kode_pemulihan_baru', { p_token: tokenSesi(), p_pin: pin }).then(function (kode) {
+              if (!kode) { $('#galatKode').textContent = 'PIN salah, coba lagi.'; return; }
+              catatLog('buat_kode_pemulihan', 'Kode pemulihan baru dibuat');
+              aturHtml('hasilKode', '<p style="margin:14px 0 6px">Kode pemulihan baru — <b>hanya tampil sekali</b>:</p>' +
+                '<div class="mono" style="font-size:28px;font-weight:900;letter-spacing:5px">' + e(kode) + '</div>' +
+                '<p style="color:var(--redup)">Simpan kode ini, hanya tampil sekali. Kode lama tidak berlaku lagi.</p>' +
+                '<button class="btn btn-garis btn-kecil" type="button" id="salinKodeBaru">Salin kode</button>');
+              var sk = $('#salinKodeBaru'); if (sk) sk.addEventListener('click', function () { salin(kode, 'Kode pemulihan disalin'); });
+            }).catch(function () { var gk = $('#galatKode'); if (gk) gk.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+          });
+        } else {
+          aturHtml('kodeAkun', '<p><span class="lencana bahaya">Kode sudah dipakai</span></p>' +
+            '<p style="color:var(--redup)">Kode sudah dipakai, minta reset ke Pak RT.</p>' +
+            '<a class="btn btn-garis" href="#/lupa-pin">Lupa PIN</a>');
+        }
+      }).catch(function () { aturHtml('profilAkun', '<p>Tidak bisa memuat profil — periksa internet.</p>'); });
+    $('#fGantiPin').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var lama = $('#gLama').value, baru = $('#gBaru').value, ulang = $('#gBaru2').value, galat = $('#galatGanti');
+      galat.textContent = '';
+      if (!/^\d{4,6}$/.test(baru)) { galat.textContent = 'PIN baru harus 4–6 angka.'; return; }
+      if (baru !== ulang) { galat.textContent = 'PIN baru dan ketik ulang tidak sama.'; return; }
+      sbRpc('atur_pin_baru', { p_token: tokenSesi(), p_pin_lama: lama, p_pin_baru: baru }).then(function (ok) {
+        if (!ok) { galat.textContent = 'PIN lama salah.'; return; }
+        if (s.pin_sementara) { s.pin_sementara = false; simpanSesi(s); }
+        catatLog('ganti_pin', 'Ganti PIN sendiri');
+        ev.target.reset(); toast('PIN diganti');
+      }).catch(function () { galat.textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+    });
+    $('#btnKeluarAkun').addEventListener('click', function () { keluarSesi(); location.hash = '#/'; toast('Anda keluar dari panel'); });
+  };
+
+  /* ========== 6c. Admin — Kelola Pengurus, Kelola Wilayah, Halaman RW,
+     Pilih wilayah, Log Histori (Pekerja 3, PRD-v4 UI 4-7, 11) ========== */
+  /* TOKEN SESI (F1): semua RPC admin mengirim p_token; peran + wilayah
+     diambil server dari baris sesi, BUKAN dari parameter browser.
+     Gating menu di bawah tetap dari sesi browser (hanya untuk tampilan);
+     penegakan sesungguhnya ada DI DALAM fungsi server. */
+  function peranSesi() { var s = sesi(); return (s && s.peran) || ''; }
+  function wilayahSesi() { var s = sesi(); return (s && s.wilayah_id) || ''; }
+  function labelWilayahSesi() { var w = cariWilayah(wilayahSesi()); return w ? labelWilayah(w) : (wilayahSesi() || '-'); }
+  /* Format pesan WA reset PIN (disetujui Masdan 24 Nov 2026): dikirim dari
+     WA masing-masing, gratis, BUKAN WA Business API. */
+  function pesanResetPin(nama, pin, kode, namaAdmin) {
+    return 'Halo ' + nama + ', PIN sementara panel pengurus Anda: ' + pin + '. Kode pemulihan baru: ' + kode + '. Segera masuk dan ganti PIN Anda. — ' + namaAdmin;
+  }
+  function lencanaStatus(st) {
+    return '<span class="lencana' + (st === 'aktif' ? '' : st === 'menunggu' ? ' aksen' : ' bahaya') + '">' + (st === 'aktif' ? 'Aktif' : st === 'menunggu' ? 'Menunggu' : 'Nonaktif') + '</span>';
+  }
+  function fmtWaktu(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  /* Cache daftar wilayah (aktif) tidak berlaku lagi sesudah Kelola Wilayah
+     mengubah status/data wilayah — panggil ini sesudah tiap aksi di sana. */
+  function segarkanWilayah() { daftarWilayah = null; }
+
+  /* --- Pilih wilayah (UI 7): hanya superadmin + admin_rw. Pengurus biasa
+     dan admin_rt satu wilayah TIDAK melihat pemilih ini. --- */
+  function opsiPilihWilayah() {
+    var s = sesi(); if (!s) return [];
+    var semua = daftarWilayah || [];
+    if (s.peran === 'superadmin') return semua;
+    if (s.peran === 'admin_rw') return semua.filter(function (w) { return w.id === s.wilayah_id || w.rw_induk_id === s.wilayah_id; });
+    return [];
+  }
+  function barPilihWilayah() {
+    var s = sesi();
+    if (!s || (s.peran !== 'superadmin' && s.peran !== 'admin_rw')) return '';
+    var daftar = opsiPilihWilayah();
+    var opsi = daftar.length
+      ? daftar.map(function (w) { return '<option value="' + e(w.id) + '"' + (w.id === s.wilayah_id ? ' selected' : '') + '>' + e(labelWilayah(w)) + '</option>'; }).join('')
+      : '<option value="' + e(s.wilayah_id) + '">' + e(labelWilayahSesi()) + '</option>';
+    return '<div class="kartu pilih-wilayah"><label for="pilihWilayah" style="margin:0"><b>Wilayah yang dikelola</b></label>' +
+      '<select id="pilihWilayah">' + opsi + '</select>' +
+      '<small style="color:var(--redup);flex-basis:100%">Pindah wilayah tanpa keluar masuk. Data warga, iuran, dan kas di panel ini masih tersimpan per perangkat, bukan per wilayah — yang ikut pindah wilayah adalah data admin (pengurus, wilayah, log).</small></div>';
+  }
+  function pasangPilihWilayah() {
+    var sel = $('#pilihWilayah'); if (!sel) return;
+    var isiOpsi = function () {
+      var s = sesi(); if (!s) return;
+      var daftar = opsiPilihWilayah();
+      if (!daftar.length) return;
+      sel.innerHTML = daftar.map(function (w) { return '<option value="' + e(w.id) + '"' + (w.id === s.wilayah_id ? ' selected' : '') + '>' + e(labelWilayah(w)) + '</option>'; }).join('');
+    };
+    if (!daftarWilayah) muatWilayah().then(isiOpsi).catch(function () {});
+    else isiOpsi();
+    sel.addEventListener('change', function () {
+      var s = sesi(); if (!s || !this.value || this.value === s.wilayah_id) return;
+      var idBaru = this.value;
+      s.wilayah_id = idBaru; simpanSesi(s);
+      catatLog('pindah_wilayah', 'Pindah kelola ke wilayah ' + idBaru);
+      toast('Wilayah dikelola: ' + (cariWilayah(idBaru) ? labelWilayah(cariWilayah(idBaru)) : idBaru));
+      render();
+    });
+  }
+
+  /* --- Kelola Pengurus (UI 4): Admin RT + Superadmin. --- */
+  HAL['kelola-pengurus'] = function () {
+    var s = sesi() || {};
+    return kepalaHal('Kelola Pengurus', 'Wilayah: ' + e(labelWilayahSesi()) + (s.peran === 'superadmin' ? ' · Superadmin mengelola wilayah yang dipilih di pemilih di atas' : '')) +
+      '<div id="daftarKelolaPengurus"><p style="color:var(--redup)">Memuat daftar pengurus…</p></div>';
+  };
+  var daftarKelola = [];
+  function barisKelolaPengurus(p) {
+    var s = sesi() || {};
+    /* N1 (guard UI, melengkapi guard server): kartu Superadmin hanya boleh
+       disentuh Superadmin itu sendiri — sembunyikan Reset PIN,
+       Setujui/Tolak, Ubah, Nonaktifkan, dan Aktifkan bila sesi sekarang bukan
+       Superadmin target. */
+    var superadminLain = p.peran === 'superadmin' && !(s.peran === 'superadmin' && s.id === p.id);
+    var tombol = '';
+    if (p.status === 'menunggu') tombol = superadminLain ? '' : '<button class="btn btn-kecil" data-aksi="setujui" data-id="' + p.id + '">' + ik('cek') + 'Setujui</button><button class="btn btn-hapus btn-kecil" data-aksi="tolak" data-id="' + p.id + '">Tolak</button>';
+    else if (p.status === 'aktif') tombol = superadminLain ? '' : '<button class="btn btn-garis btn-kecil" data-aksi="reset" data-id="' + p.id + '">' + ik('kunci') + 'Reset PIN</button><button class="btn btn-garis btn-kecil" data-aksi="ubah" data-id="' + p.id + '">' + ik('sunting') + 'Ubah</button><button class="btn btn-hapus btn-kecil" data-aksi="nonaktif" data-id="' + p.id + '">Nonaktifkan</button>';
+    else tombol = superadminLain ? '' : '<button class="btn btn-kecil" data-aksi="aktifkan" data-id="' + p.id + '">' + ik('cek') + 'Aktifkan</button><button class="btn btn-garis btn-kecil" data-aksi="ubah" data-id="' + p.id + '">' + ik('sunting') + 'Ubah</button>';
+    return '<article class="kartu info-kartu"><div style="flex:1;min-width:0"><div class="baris-aksi" style="margin-bottom:4px">' + lencanaStatus(p.status) + '<span class="lencana netral">' + e(p.peran) + '</span>' + (p.pin_sementara ? '<span class="lencana bahaya">PIN sementara</span>' : '') + '</div>' +
+      '<h3>' + e(p.nama) + '</h3><p>' + e(p.jabatan) + (p.wa ? ' · WA ' + e(p.wa) : ' · WA —') + (p.email ? ' · ' + e(p.email) : '') + '</p>' +
+      '<div class="baris-aksi" style="margin-top:12px">' + tombol + '</div></div></article>';
+  }
+  function gambarKelolaPengurus() {
+    var wadah = $('#daftarKelolaPengurus'); if (!wadah) return;
+    if (!daftarKelola.length) { wadah.innerHTML = kosong('Belum ada pengurus di wilayah ini.', 'warga'); return; }
+    var grup = function (st, judul) {
+      var rows = daftarKelola.filter(function (p) { return p.status === st; });
+      if (!rows.length) return '';
+      return '<section style="margin-bottom:16px"><h2 style="font-size:18px;margin-bottom:12px">' + judul + ' <span class="lencana netral">' + rows.length + '</span></h2><div class="tumpuk stagger">' + rows.map(barisKelolaPengurus).join('') + '</div></section>';
+    };
+    wadah.innerHTML = grup('menunggu', 'Menunggu persetujuan') + grup('aktif', 'Aktif') + grup('nonaktif', 'Nonaktif');
+    stagger(wadah);
+  }
+  HAL['kelola-pengurusPasca'] = function () {
+    var s = sesi(); if (!s) return;
+    var muat = function () {
+      sbRpc('daftar_semua_pengurus', { p_token: tokenSesi(), p_wilayah_id: s.wilayah_id }).then(function (rows) {
+        daftarKelola = rows || [];
+        gambarKelolaPengurus();
+      }).catch(function () { aturHtml('daftarKelolaPengurus', '<p>Tidak bisa memuat daftar — periksa internet.</p>'); });
+    };
+    muat();
+    /* Judul ramah: subjudul dirender sebelum daftar wilayah termuat
+       (labelWilayahSesi jatuh ke ID mentah) — perbarui sesudah muat. */
+    muatWilayah().catch(function () {}).then(function () {
+      var sub = document.querySelector('#isi .kepala-hal p');
+      if (sub) sub.textContent = 'Wilayah: ' + labelWilayahSesi() + (s.peran === 'superadmin' ? ' · Superadmin mengelola wilayah yang dipilih di pemilih di atas' : '');
+    });
+    $('#daftarKelolaPengurus').addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-aksi]'); if (!b) return;
+      var p = daftarKelola.filter(function (x) { return x.id === b.dataset.id; })[0]; if (!p) return;
+      var aksi = b.dataset.aksi;
+      if (aksi === 'setujui') {
+        sbRpc('setujui_pengurus', { p_token: tokenSesi(), p_pengurus_id: p.id }).then(function (ok) {
+          if (!ok) { toast('Gagal menyetujui — mungkin sudah berubah', 'bahaya'); return; }
+          catatLog('setujui_pengurus', 'Menyetujui pendaftaran: ' + p.nama + ' (' + p.jabatan + ')', p.wilayah_id);
+          toast(p.nama + ' disetujui — sudah bisa masuk'); muat();
+        }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+      }
+      if (aksi === 'tolak') {
+        konfirmasi('Tolak pendaftaran ' + p.nama + '?', 'Pendaftaran dihapus dan nama ini tidak bisa masuk. Pendaftar bisa daftar ulang bila perlu.', 'Tolak', function () {
+          sbRpc('tolak_pengurus', { p_token: tokenSesi(), p_pengurus_id: p.id }).then(function (ok) {
+            if (!ok) { toast('Gagal menolak — mungkin sudah berubah', 'bahaya'); return; }
+            catatLog('tolak_pengurus', 'Menolak pendaftaran: ' + p.nama + ' (' + p.jabatan + ')', p.wilayah_id);
+            toast('Pendaftaran ' + p.nama + ' ditolak'); muat();
+          }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+        });
+      }
+      if (aksi === 'aktifkan' || aksi === 'nonaktif') {
+        var jadi = aksi === 'aktifkan' ? 'aktif' : 'nonaktif';
+        sbRpc('ubah_pengurus', { p_token: tokenSesi(), p_pengurus_id: p.id, p_jabatan: p.jabatan, p_peran: p.peran, p_status: jadi }).then(function (ok) {
+          if (!ok) { toast('Gagal mengubah status', 'bahaya'); return; }
+          catatLog('ubah_status_pengurus', p.nama + ' -> ' + jadi, p.wilayah_id);
+          toast(p.nama + (jadi === 'aktif' ? ' diaktifkan' : ' dinonaktifkan — tidak bisa masuk')); muat();
+        }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+      }
+      if (aksi === 'ubah') formUbahPengurus(p, muat);
+      if (aksi === 'reset') {
+        konfirmasi('Reset PIN ' + p.nama + '?', 'PIN lama langsung tidak berlaku. PIN sementara + kode pemulihan baru dibuat dan hanya tampil sekali di layar ini.', 'Reset PIN', function () {
+          sbRpc('reset_pin_admin', { p_token: tokenSesi(), p_pengurus_id: p.id }).then(function (rows) {
+            var r = (rows || [])[0];
+            if (!r) { toast('Reset gagal — pengurus harus aktif', 'bahaya'); return; }
+            catatLog('reset_pin', 'Reset PIN pengurus: ' + p.nama, p.wilayah_id);
+            tampilHasilReset(p, r.pin, r.kode);
+            muat();
+          }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+        });
+      }
+    });
+  };
+  /* Ubah jabatan/peran. Admin RT HANYA boleh ubah ke peran 'pengurus'
+     (server ikut menolak pengangkatan admin oleh bukan superadmin);
+     hanya Superadmin boleh angkat admin_rt/admin_rw. */
+  function formUbahPengurus(p, lalu) {
+    var s = sesi() || {};
+    var opsiPeran = s.peran === 'superadmin'
+      ? [['pengurus', 'Pengurus'], ['admin_rt', 'Admin RT'], ['admin_rw', 'Admin RW']]
+      : [['pengurus', 'Pengurus']];
+    modal('<form id="fUbahPengurus"><div class="modal-kepala"><div><h2 id="modalJudul">Ubah ' + e(p.nama) + '</h2><p style="margin:4px 0 0;color:var(--redup)">' + e(p.jabatan) + ' · ' + e(p.peran) + ' · ' + lencanaStatus(p.status) + '</p></div><button type="button" class="ikon-btn" data-tutup aria-label="Tutup">' + ik('tutup') + '</button></div>' +
+      '<div class="form-grid">' +
+      bid('upJabatan', 'Jabatan', '<input id="upJabatan" name="jabatan" value="' + e(p.jabatan) + '">') +
+      bid('upPeran', 'Peran', '<select id="upPeran" name="peran">' + opsiPeran.map(function (o) { return '<option value="' + o[0] + '"' + (p.peran === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>') + '</div>' +
+      (s.peran === 'superadmin' ? '' : '<p style="color:var(--redup);font-size:13px">Admin RT hanya boleh mengubah ke peran Pengurus. Pengangkatan Admin RT/RW hanya oleh Superadmin.</p>') +
+      '<p id="galatUbah" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<div class="modal-kaki"><button type="button" class="btn btn-garis" data-tutup>Batal</button><button class="btn" type="submit">' + ik('cek') + 'Simpan</button></div></form>', function (m) {
+      $('#fUbahPengurus', m).addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var jab = $('#upJabatan', m).value.trim(), peran = $('#upPeran', m).value;
+        if (!jab) { $('#galatUbah', m).textContent = 'Jabatan wajib diisi.'; return; }
+        sbRpc('ubah_pengurus', { p_token: tokenSesi(), p_pengurus_id: p.id, p_jabatan: jab, p_peran: peran, p_status: p.status }).then(function (ok) {
+          if (!ok) { $('#galatUbah', m).textContent = 'Tidak boleh mengangkat admin — hanya Superadmin.'; return; }
+          if (jab !== p.jabatan) catatLog('ubah_jabatan', p.nama + ': ' + p.jabatan + ' -> ' + jab, p.wilayah_id);
+          if (peran !== p.peran) catatLog('ubah_peran', p.nama + ': ' + p.peran + ' -> ' + peran, p.wilayah_id);
+          tutupModal(); toast('Perubahan ' + p.nama + ' disimpan'); if (lalu) lalu();
+        }).catch(function () { $('#galatUbah', m).textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+      });
+    });
+  }
+  /* Hasil reset PIN: PIN + kode tampil SEKALI + tombol Kirim WA (wa.me,
+     gratis dari WA masing-masing). */
+  function tampilHasilReset(p, pin, kode) {
+    var s = sesi() || {};
+    var teks = pesanResetPin(p.nama, pin, kode, s.nama || 'Admin');
+    var isiWa = p.wa
+      ? '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + waLink(p.wa, teks) + '">' + ik('wa') + 'Kirim WA ke ' + e(p.nama) + '</a>'
+      : '<p style="color:var(--bahaya);font-weight:700">No. WA ' + e(p.nama) + ' kosong — salin PIN dan kode di bawah lalu kirim manual.</p>';
+    modal('<div class="modal-kepala"><div><h2 id="modalJudul">PIN sementara ' + e(p.nama) + '</h2><p style="margin:4px 0 0;color:var(--redup)">Hanya tampil sekali — PIN lama sudah tidak berlaku.</p></div><button type="button" class="ikon-btn" data-tutup aria-label="Tutup">' + ik('tutup') + '</button></div>' +
+      '<div class="form-grid">' +
+      '<div class="bidang"><label>PIN sementara</label><div class="mono" style="font-size:32px;font-weight:900;letter-spacing:6px">' + e(pin) + '</div></div>' +
+      '<div class="bidang"><label>Kode pemulihan baru</label><div class="mono" style="font-size:28px;font-weight:900;letter-spacing:4px">' + e(kode) + '</div></div></div>' +
+      '<p style="background:var(--permukaan-2);border:1px solid var(--garis);border-radius:12px;padding:12px">“' + e(teks) + '”</p>' +
+      '<div class="baris-aksi">' + isiWa + '<button class="btn btn-garis" type="button" id="salinReset">Salin PIN + kode</button></div>' +
+      '<p style="color:var(--redup);font-size:13px;margin:12px 0 0">' + e(p.nama) + ' wajib ganti PIN saat pertama masuk dengan PIN sementara ini.</p>', function (m) {
+      $('#salinReset', m).addEventListener('click', function () { salin('PIN sementara: ' + pin + '\nKode pemulihan baru: ' + kode, 'PIN + kode disalin'); });
+    });
+  }
+
+  /* --- Kelola Wilayah (UI 5): hanya Superadmin. --- */
+  HAL['kelola-wilayah'] = function () {
+    return kepalaHal('Kelola Wilayah', 'Semua RW + RT beserta statusnya. Hanya Superadmin.') +
+      '<div id="daftarKelolaWilayah"><p style="color:var(--redup)">Memuat daftar wilayah…</p></div>';
+  };
+  var daftarWilayahAdmin = [];
+  function barisKelolaWilayah(w) {
+    var tombol = '';
+    if (w.status === 'menunggu') tombol = '<button class="btn btn-kecil" data-aksi-w="setujui" data-id="' + e(w.id) + '">' + ik('cek') + 'Setujui</button><button class="btn btn-hapus btn-kecil" data-aksi-w="tolak" data-id="' + e(w.id) + '">Tolak</button>';
+    else if (w.status === 'aktif') tombol = '<button class="btn btn-hapus btn-kecil" data-aksi-w="nonaktif" data-id="' + e(w.id) + '">Nonaktifkan</button>';
+    else tombol = '<button class="btn btn-kecil" data-aksi-w="setujui" data-id="' + e(w.id) + '">' + ik('cek') + 'Aktifkan</button>';
+    tombol += '<button class="btn btn-garis btn-kecil" data-aksi-w="ubah" data-id="' + e(w.id) + '">' + ik('sunting') + 'Ubah data</button><button class="btn btn-garis btn-kecil" data-aksi-w="angkat" data-id="' + e(w.id) + '">' + ik('jiwa') + 'Angkat Admin</button>';
+    return '<article class="kartu info-kartu"><div style="flex:1;min-width:0"><div class="baris-aksi" style="margin-bottom:4px"><span class="lencana' + (w.jenis === 'rw' ? ' aksen' : '') + '">' + (w.jenis === 'rw' ? 'RW' : 'RT') + '</span>' + lencanaStatus(w.status) + '</div>' +
+      '<h3>' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + e(w.nomor) + ' — Kel. ' + e(w.kelurahan) + '</h3>' +
+      '<p>Ketua: ' + e(w.ketua_nama || 'Belum diisi') + (w.ketua_wa ? ' · WA ' + e(w.ketua_wa) : ' · WA Belum diisi') + (w.ketua_email ? ' · ' + e(w.ketua_email) : '') + '</p>' +
+      '<p style="color:var(--redup);font-size:13px">' + e([w.kecamatan, w.kota, w.provinsi].filter(Boolean).join(', ')) + (w.rw_induk_id ? ' · RW induk: ' + e(w.rw_induk_id) : '') + '</p>' +
+      '<p style="color:var(--redup);font-size:13px">Kode verifikasi RW bisa dilihat / diubah lewat tombol “Ubah data” (hanya Superadmin, lewat RPC baca_kode_verifikasi).</p>' +
+      '<div class="baris-aksi" style="margin-top:12px">' + tombol + '</div></div></article>';
+  }
+  function gambarKelolaWilayah() {
+    var wadah = $('#daftarKelolaWilayah'); if (!wadah) return;
+    if (!daftarWilayahAdmin.length) { wadah.innerHTML = kosong('Belum ada wilayah terdaftar.', 'rumah'); return; }
+    var grup = function (jenis, judul) {
+      var rows = daftarWilayahAdmin.filter(function (w) { return w.jenis === jenis; });
+      if (!rows.length) return '';
+      return '<section style="margin-bottom:16px"><h2 style="font-size:18px;margin-bottom:12px">' + judul + ' <span class="lencana netral">' + rows.length + '</span></h2><div class="tumpuk stagger">' + rows.map(barisKelolaWilayah).join('') + '</div></section>';
+    };
+    wadah.innerHTML = grup('rw', 'RW') + grup('rt', 'RT');
+    stagger(wadah);
+  }
+  HAL['kelola-wilayahPasca'] = function () {
+    var muat = function () {
+      sbRpc('daftar_semua_wilayah', { p_token: tokenSesi() }).then(function (rows) {
+        daftarWilayahAdmin = rows || [];
+        gambarKelolaWilayah();
+      }).catch(function () { aturHtml('daftarKelolaWilayah', '<p>Tidak bisa memuat daftar — periksa internet.</p>'); });
+    };
+    muat();
+    $('#daftarKelolaWilayah').addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-aksi-w]'); if (!b) return;
+      var w = daftarWilayahAdmin.filter(function (x) { return x.id === b.dataset.id; })[0]; if (!w) return;
+      var aksi = b.dataset.aksiW;
+      var ubahStatus = function (jadi, aksiLog, rincian, pesan) {
+        sbRpc('ubah_status_wilayah', { p_token: tokenSesi(), p_wilayah_id: w.id, p_status: jadi }).then(function (ok) {
+          if (!ok) { toast('Gagal mengubah status wilayah', 'bahaya'); return; }
+          segarkanWilayah();
+          catatLog(aksiLog, rincian, w.id);
+          toast(pesan); muat();
+        }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+      };
+      if (aksi === 'setujui') ubahStatus('aktif', 'setujui_wilayah', 'Menyetujui wilayah: ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ' Kel. ' + w.kelurahan, 'Wilayah disetujui — sudah aktif');
+      if (aksi === 'tolak') {
+        konfirmasi('Tolak wilayah ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ' Kel. ' + w.kelurahan + '?', 'Wilayah jadi nonaktif dan tidak tampil di pilih wilayah maupun halaman masuk. Pendaftar bisa mendaftar ulang.', 'Tolak', function () {
+          ubahStatus('nonaktif', 'tolak_wilayah', 'Menolak wilayah: ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ' Kel. ' + w.kelurahan, 'Wilayah ditolak (nonaktif)');
+        });
+      }
+      if (aksi === 'nonaktif') {
+        konfirmasi('Nonaktifkan wilayah ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + '?', 'Wilayah tidak tampil lagi di pilih wilayah dan halaman masuk. Pengurus di wilayah ini tidak bisa masuk selama nonaktif.', 'Nonaktifkan', function () {
+          ubahStatus('nonaktif', 'nonaktifkan_wilayah', 'Menonaktifkan wilayah: ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ' Kel. ' + w.kelurahan, 'Wilayah dinonaktifkan');
+        });
+      }
+      if (aksi === 'ubah') formUbahWilayah(w, function () { segarkanWilayah(); muat(); });
+      if (aksi === 'angkat') formAngkatAdmin(w);
+    });
+  };
+  function formUbahWilayah(w, lalu) {
+    var rwList = daftarWilayahAdmin.filter(function (x) { return x.jenis === 'rw' && x.id !== w.id; });
+    modal('<form id="fUbahWilayah"><div class="modal-kepala"><div><h2 id="modalJudul">Ubah data ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + e(w.nomor) + '</h2><p style="margin:4px 0 0;color:var(--redup)">ID: <span class="mono">' + e(w.id) + '</span></p></div><button type="button" class="ikon-btn" data-tutup aria-label="Tutup">' + ik('tutup') + '</button></div>' +
+      '<div class="form-grid">' +
+      bid('uwNomor', 'Nomor', '<input id="uwNomor" name="nomor" value="' + e(w.nomor) + '" maxlength="3">') +
+      bid('uwKel', 'Kelurahan / desa', '<input id="uwKel" name="kelurahan" value="' + e(w.kelurahan) + '">') +
+      bid('uwKec', 'Kecamatan', '<input id="uwKec" name="kecamatan" value="' + e(w.kecamatan) + '">') +
+      bid('uwKota', 'Kota / kabupaten', '<input id="uwKota" name="kota" value="' + e(w.kota) + '">') +
+      bid('uwProv', 'Provinsi', '<input id="uwProv" name="provinsi" value="' + e(w.provinsi) + '">') +
+      bid('uwKetua', 'Nama Ketua', '<input id="uwKetua" name="ketua" value="' + e(w.ketua_nama) + '">') +
+      bid('uwWa', 'WA Ketua', '<input id="uwWa" name="wa" inputmode="tel" value="' + e(w.ketua_wa) + '">', 'Wajib diisi supaya tombol WA Lupa PIN jalan.') +
+      bid('uwEmail', 'Email Ketua', '<input id="uwEmail" name="email" type="email" value="' + e(w.ketua_email) + '">') +
+      bid('uwKode', 'Kode verifikasi RW', '<input id="uwKode" name="kode" value="" autocomplete="off">', 'Kode yang dibagikan RW ke RT-nya. Kosongkan bila tidak ada. Kode lama dimuat lewat baca_kode_verifikasi sesudah jendela ini dibuka.') +
+      (w.jenis === 'rt' ? bid('uwRw', 'RW induk', '<select id="uwRw" name="rw"><option value="">— Tidak ada —</option>' + rwList.map(function (x) { return '<option value="' + e(x.id) + '"' + (w.rw_induk_id === x.id ? ' selected' : '') + '>' + e(labelWilayah(x)) + '</option>'; }).join('') + '</select>') : '') + '</div>' +
+      '<p id="galatUbahW" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+      '<div class="modal-kaki"><button type="button" class="btn btn-garis" data-tutup>Batal</button><button class="btn" type="submit">' + ik('cek') + 'Simpan</button></div></form>', function (m) {
+      /* Kode verifikasi TIDAK lagi dikembalikan daftar_semua_wilayah —
+         ambil lewat baca_kode_verifikasi (hanya superadmin / admin_rw
+         wilayah itu) dan isi ke input bila ada. */
+      sbRpc('baca_kode_verifikasi', { p_token: tokenSesi(), p_wilayah_id: w.id }).then(function (kode) {
+        var el = $('#uwKode', m); if (el && kode) el.value = kode;
+      }).catch(function () {});
+      $('#fUbahWilayah', m).addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var f = ev.target;
+        if (!/^\d{1,3}$/.test(f.nomor.value.trim()) || !f.kelurahan.value.trim() || !f.ketua.value.trim()) { $('#galatUbahW', m).textContent = 'Nomor, kelurahan, dan nama Ketua wajib diisi.'; return; }
+        sbRpc('ubah_wilayah', {
+          p_token: tokenSesi(), p_wilayah_id: w.id, p_nomor: f.nomor.value.trim(), p_kelurahan: f.kelurahan.value.trim(),
+          p_kecamatan: f.kecamatan.value.trim(), p_kota: f.kota.value.trim(), p_provinsi: f.provinsi.value.trim(),
+          p_ketua_nama: f.ketua.value.trim(), p_ketua_wa: waNomor(f.wa.value), p_ketua_email: f.email.value.trim(),
+          p_kode_verifikasi: f.kode ? f.kode.value.trim() : '', p_rw_induk_id: f.rw ? f.rw.value : ''
+        }).then(function (ok) {
+          if (!ok) { $('#galatUbahW', m).textContent = 'Gagal menyimpan perubahan.'; return; }
+          catatLog('ubah_wilayah', 'Ubah data wilayah: ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ' Kel. ' + w.kelurahan, w.id);
+          tutupModal(); toast('Data wilayah disimpan'); if (lalu) lalu();
+        }).catch(function () { $('#galatUbahW', m).textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+      });
+    });
+  }
+  function formAngkatAdmin(w, lalu) {
+    modal('<div class="modal-kepala"><div><h2 id="modalJudul">Angkat Admin — ' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + e(w.nomor) + '</h2><p style="margin:4px 0 0;color:var(--redup)">Memuat pengurus wilayah ini…</p></div><button type="button" class="ikon-btn" data-tutup aria-label="Tutup">' + ik('tutup') + '</button></div><div id="isiAngkat"></div>', function (m) {
+      sbRpc('daftar_semua_pengurus', { p_token: tokenSesi(), p_wilayah_id: w.id }).then(function (rows) {
+        rows = (rows || []).filter(function (p) { return p.status === 'aktif'; });
+        var wadah = $('#isiAngkat', m);
+        if (!wadah) return;
+        var peranDefault = w.jenis === 'rw' ? 'admin_rw' : 'admin_rt';
+        wadah.innerHTML = '<form id="fAngkat"><div class="form-grid">' +
+          bid('aaNama', 'Pengurus', '<select id="aaNama" name="pengurus">' + rows.map(function (p) { return '<option value="' + p.id + '">' + e(p.nama) + ' — ' + e(p.jabatan) + ' (' + e(p.peran) + ')</option>'; }).join('') + '</select>') +
+          bid('aaPeran', 'Diangkat sebagai', '<select id="aaPeran" name="peran"><option value="admin_rt"' + (peranDefault === 'admin_rt' ? ' selected' : '') + '>Admin RT</option><option value="admin_rw"' + (peranDefault === 'admin_rw' ? ' selected' : '') + '>Admin RW</option></select>') + '</div>' +
+          '<p id="galatAngkat" role="alert" style="color:var(--bahaya);font-weight:700;margin:0 0 12px"></p>' +
+          '<div class="modal-kaki"><button type="button" class="btn btn-garis" data-tutup>Batal</button><button class="btn" type="submit">' + ik('cek') + 'Angkat Admin</button></div></form>';
+        $('#fAngkat', m).addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          var id = $('#aaNama', m).value, peran = $('#aaPeran', m).value;
+          var p = rows.filter(function (x) { return x.id === id; })[0];
+          sbRpc('ubah_pengurus', { p_token: tokenSesi(), p_pengurus_id: id, p_jabatan: p.jabatan, p_peran: peran, p_status: 'aktif' }).then(function (ok) {
+            if (!ok) { $('#galatAngkat', m).textContent = 'Gagal mengangkat admin.'; return; }
+            catatLog('angkat_admin', 'Angkat admin: ' + p.nama + ' -> ' + peran + ' (' + (w.jenis === 'rw' ? 'RW ' : 'RT ') + w.nomor + ')', w.id);
+            tutupModal(); toast(p.nama + ' diangkat jadi ' + (peran === 'admin_rw' ? 'Admin RW' : 'Admin RT')); if (lalu) lalu();
+          }).catch(function () { $('#galatAngkat', m).textContent = 'Tidak bisa terhubung ke server. Coba lagi.'; });
+        });
+      }).catch(function () { var wadah = $('#isiAngkat', m); if (wadah) wadah.innerHTML = '<p>Tidak bisa memuat pengurus — periksa internet.</p>'; });
+    });
+  }
+
+  /* --- Halaman RW (UI 6): route publik #/rw/<id> + menu panel admin_rw. --- */
+  function rwIdDariSesi() {
+    var s = sesi(); if (!s) return null;
+    var w = cariWilayah(s.wilayah_id);
+    if (w && w.jenis === 'rw') return w.id;
+    if (w && w.rw_induk_id) return w.rw_induk_id;
+    return null;
+  }
+  function rtLokal(w) { return w && w.jenis === 'rt' && w.nomor === D.pengaturan.rt && w.kelurahan === D.pengaturan.kelurahan; }
+  function halamanRW(rwId) {
+    var rw = cariWilayah(rwId);
+    if (!rw) return kepalaHal('Halaman RW', 'RW tidak ditemukan atau belum aktif.') + kosong('Periksa kembali tautan halaman RW.', 'cari');
+    var rtList = (daftarWilayah || []).filter(function (w) { return w.jenis === 'rt' && w.rw_induk_id === rwId; });
+    var kartu = rtList.length ? rtList.map(function (w) {
+      var lokal = rtLokal(w);
+      /* Pengumuman/agenda per RT belum ada di Supabase (info masih
+         localStorage satu RT): tampilkan dari data lokal HANYA untuk RT
+         yang datanya memang dimuat di perangkat ini; RT lain tampilkan
+         keterangan jujur, bukan data RT lain. */
+      var infoHtml;
+      if (lokal) {
+        var peng = pengumumanUrut().slice(0, 2), ag = infoDatang().slice(0, 1);
+        var ikonKecil = function (n) { return ik(n).replace('<svg', '<svg width="16" height="16" style="vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"'); };
+        infoHtml = (peng.length ? peng.map(function (i) { return '<p style="margin:4px 0">' + ikonKecil('info') + ' ' + e(i.judul) + '</p>'; }).join('') : '<p style="color:var(--redup)">Belum ada pengumuman.</p>') +
+          (ag.length ? '<p style="margin:4px 0">' + ikonKecil('kalender') + ' ' + e(ag[0].judul) + ' · ' + tglPanjang(ag[0].tgl) + '</p>' : '');
+      } else {
+        infoHtml = '<p style="color:var(--redup)">Pengumuman &amp; agenda RT ini belum ditampilkan di web ini.</p>';
+      }
+      return '<article class="kartu info-kartu"><div style="flex:1;min-width:0"><div class="baris-aksi" style="margin-bottom:4px"><span class="lencana">RT</span></div>' +
+        '<h3>RT ' + e(w.nomor) + ' — Kel. ' + e(w.kelurahan) + '</h3><p>Ketua: ' + e(w.ketua_nama || 'Belum diisi') + '</p>' + infoHtml +
+        '<div class="baris-aksi" style="margin-top:12px">' + (lokal ? '<a class="btn btn-garis btn-kecil" href="#/">Buka halaman RT</a>' : '') + '</div></div></article>';
+    }).join('') : kosong('Belum ada RT aktif di bawah RW ini.', 'rumah');
+    return kepalaHal('RW ' + e(rw.nomor) + ' — Kel. ' + e(rw.kelurahan), 'Ketua RW: ' + e(rw.ketua_nama || 'Belum diisi') + ' · ' + e([rw.kecamatan, rw.kota].filter(Boolean).join(', '))) +
+      '<section><h2 style="font-size:18px;margin-bottom:12px">RT di bawah RW ini <span class="lencana netral">' + rtList.length + '</span></h2><div class="grid grid-2 stagger" style="align-items:start">' + kartu + '</div></section>' +
+      '<div id="verifikasiRw"></div>';
+  }
+  function gambarVerifikasiRw(rwId) {
+    var wadah = $('#verifikasiRw'); if (!wadah) return;
+    var s = sesi();
+    if (!s || (s.peran !== 'admin_rw' && s.peran !== 'superadmin')) { wadah.innerHTML = ''; return; }
+    if (s.peran === 'admin_rw' && s.wilayah_id !== rwId) { wadah.innerHTML = ''; return; }
+    sbRpc('daftar_rt_menunggu_rw', { p_token: tokenSesi(), p_rw_id: rwId }).then(function (rows) {
+      if (!wadah || !document.contains(wadah)) return;
+      rows = rows || [];
+      wadah.innerHTML = '<section class="kartu" style="margin-top:16px"><h2>Verifikasi RT <span class="lencana netral">' + rows.length + '</span></h2>' +
+        '<p style="color:var(--redup)">RT yang mengaku di bawah RW ini dan masih menunggu. Verifikasi hanya memastikan Ketua RT-nya memang benar orangnya; isi RT sesudah itu tanggung jawab RT masing-masing.</p>' +
+        (rows.length ? '<div class="tumpuk">' + rows.map(function (r) {
+          return '<article class="kartu info-kartu"><div style="flex:1;min-width:0"><h3>RT ' + e(r.nomor) + ' — Kel. ' + e(r.kelurahan) + '</h3><p>Ketua: ' + e(r.ketua_nama || 'Belum diisi') + (r.ketua_wa ? ' · WA ' + e(r.ketua_wa) : '') + (r.ketua_email ? ' · ' + e(r.ketua_email) : '') + '</p>' +
+            '<div class="baris-aksi" style="margin-top:12px"><button class="btn btn-kecil" data-verifikasi="ya" data-rt-id="' + e(r.id) + '">' + ik('cek') + 'Konfirmasi</button><button class="btn btn-hapus btn-kecil" data-verifikasi="tidak" data-rt-id="' + e(r.id) + '">Tolak</button></div></div></article>';
+        }).join('') + '</div>' : kosong('Tidak ada RT menunggu verifikasi.', 'cek')) + '</section>';
+    }).catch(function () { if (wadah && document.contains(wadah)) wadah.innerHTML = '<p>Tidak bisa memuat daftar verifikasi — periksa internet.</p>'; });
+  }
+  function pasangVerifikasiRw(rwId) {
+    gambarVerifikasiRw(rwId);
+    var wadah = $('#verifikasiRw'); if (!wadah) return;
+    wadah.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-verifikasi]'); if (!b) return;
+      var id = b.dataset.rtId;
+      if (b.dataset.verifikasi === 'ya') {
+        sbRpc('ubah_status_wilayah', { p_token: tokenSesi(), p_wilayah_id: id, p_status: 'aktif' }).then(function (ok) {
+          if (!ok) { toast('Gagal mengonfirmasi RT', 'bahaya'); return; }
+          segarkanWilayah();
+          catatLog('verifikasi_rt', 'RT dikonfirmasi di bawah RW ' + rwId, id);
+          toast('RT dikonfirmasi — sudah aktif');
+          muatUlangHalamanRW(rwId);
+        }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+      } else {
+        konfirmasi('Tolak RT ini?', 'RT ini jadi nonaktif dan tidak tampil di halaman RW. Pendaftar bisa mendaftar ulang.', 'Tolak', function () {
+          sbRpc('ubah_status_wilayah', { p_token: tokenSesi(), p_wilayah_id: id, p_status: 'nonaktif' }).then(function (ok) {
+            if (!ok) { toast('Gagal menolak RT', 'bahaya'); return; }
+            segarkanWilayah();
+            catatLog('tolak_rt', 'RT ditolak verifikasi RW ' + rwId, id);
+            toast('RT ditolak (nonaktif)');
+            muatUlangHalamanRW(rwId);
+          }).catch(function () { toast('Tidak bisa terhubung ke server', 'bahaya'); });
+        });
+      }
+    });
+  }
+  function muatUlangHalamanRW(rwId) {
+    var h = $('#halRw'); if (!h) return;
+    muatWilayah().then(function () { h.innerHTML = halamanRW(rwId); pasangVerifikasiRw(rwId); })
+      .catch(function () { h.innerHTML = '<p>Tidak bisa memuat halaman RW — periksa internet.</p>'; });
+  }
+  HAL.rw = function () {
+    var rwId = rwIdDariSesi();
+    /* F9: RT tanpa rw_induk_id (kondisi seed RT 07 — RW 13 belum terdaftar):
+       katakan jujur + beri jalan keluar, jangan hanya "belum terhubung". */
+    if (!rwId) return kepalaHal('Halaman RW', 'RT ini belum punya RW induk di web ini.') + '<p style="color:var(--redup)">RW induk RT ini belum terdaftar, jadi belum ada kartu RT yang bisa ditampilkan di sini. Daftarkan dulu RW-nya, sesudah disetujui halaman ini akan menampilkan RT-RT di bawah RW itu.</p><div class="baris-aksi" style="margin-top:12px"><a class="btn" href="#/daftar-wilayah">' + ik('tambah') + 'Daftarkan RW</a></div>';
+    return '<div id="halRw">' + (daftarWilayah ? halamanRW(rwId) : '<p style="color:var(--redup)">Memuat halaman RW…</p>') + '</div>';
+  };
+  HAL.rwPasca = function () {
+    var rwId = rwIdDariSesi(); if (!rwId) return;
+    var isi = function () { var h = $('#halRw'); if (h) { h.innerHTML = halamanRW(rwId); pasangVerifikasiRw(rwId); } };
+    if (daftarWilayah) isi();
+    else muatWilayah().then(isi).catch(function () { var h = $('#halRw'); if (h) h.innerHTML = '<p>Tidak bisa memuat halaman RW — periksa internet.</p>'; });
+  };
+  HALPUB['rw-publik'] = function (rwId) {
+    if (!rwId) return kartuAuth('Halaman RW', 'Tautan halaman RW tidak lengkap.', '<p style="color:var(--redup)">Buka halaman RW dari tautan lengkap, contoh: #/rw/&lt;id-wilayah-rw&gt;.</p>');
+    return '<div id="halRw">' + (daftarWilayah ? halamanRW(rwId) : '<p style="color:var(--redup)">Memuat halaman RW…</p>') + '</div>';
+  };
+  HALPUB['rw-publikPasca'] = function (rwId) {
+    if (!rwId) return;
+    var isi = function () { var h = $('#halRw'); if (h) { h.innerHTML = halamanRW(rwId); pasangVerifikasiRw(rwId); } };
+    if (daftarWilayah) isi();
+    else muatWilayah().then(isi).catch(function () { var h = $('#halRw'); if (h) h.innerHTML = '<p>Tidak bisa memuat halaman RW — periksa internet.</p>'; });
+  };
+
+  /* --- Log Histori (UI 11): Admin RT (wilayahnya) + Superadmin (semua).
+     RW dan warga TIDAK bisa lihat — gating menu + RPC baca_log. --- */
+  HAL.log = function () {
+    var s = sesi() || {};
+    var filter = s.peran === 'superadmin'
+      ? '<div class="alat"><div class="cari">' + ik('cari') + '<label class="sr" for="saringLogWilayah">Saring wilayah</label><select id="saringLogWilayah" style="padding-left:12px"><option value="">Semua wilayah</option></select></div></div>'
+      : '';
+    return kepalaHal('Log Histori', s.peran === 'superadmin' ? 'Semua wilayah' : 'Wilayah: ' + e(labelWilayahSesi())) + filter +
+      '<div id="daftarLog"><p style="color:var(--redup)">Memuat log…</p></div>' +
+      '<p style="color:var(--redup);font-size:13px">Log dibatasi per wilayah berdasarkan token sesi Anda (peran + wilayah diambil server dari sesi, bukan dari browser).</p>';
+  };
+  HAL.logPasca = function () {
+    var s = sesi(); if (!s) return;
+    var muat = function (wilayahId) {
+      sbRpc('baca_log', { p_token: tokenSesi(), p_wilayah_id: (wilayahId == null ? '' : wilayahId) }).then(function (rows) {
+        rows = rows || [];
+        var wadah = $('#daftarLog'); if (!wadah) return;
+        if (!rows.length) { wadah.innerHTML = kosong('Belum ada log untuk wilayah ini.', 'jam'); return; }
+        wadah.innerHTML = '<div class="tabel-wadah"><table><thead><tr><th>Waktu</th><th>Pelaku</th><th>Aksi</th><th>Rincian</th>' + (s.peran === 'superadmin' ? '<th>Wilayah</th>' : '') + '</tr></thead><tbody>' +
+          rows.map(function (l) {
+            return '<tr><td style="white-space:nowrap">' + e(fmtWaktu(l.waktu)) + '</td><td><b>' + e(l.pelaku_nama || '-') + '</b><br><small style="color:var(--redup)">' + e(l.pelaku_peran || '') + '</small></td><td><span class="mono">' + e(l.aksi) + '</span></td><td style="white-space:normal;min-width:180px">' + e(l.rincian || '') + '</td>' + (s.peran === 'superadmin' ? '<td class="mono">' + e(l.wilayah_id || '') + '</td>' : '') + '</tr>';
+          }).join('') + '</tbody></table></div>';
+      }).catch(function () { var w = $('#daftarLog'); if (w) w.innerHTML = '<p>Tidak bisa memuat log — periksa internet.</p>'; });
+    };
+    if (s.peran === 'superadmin') {
+      sbRpc('daftar_semua_wilayah', { p_token: tokenSesi() }).then(function (rows) {
+        var sel = $('#saringLogWilayah'); if (!sel) return;
+        (rows || []).forEach(function (w) {
+          var o = document.createElement('option'); o.value = w.id; o.textContent = labelWilayah(w) + ' (' + w.status + ')'; sel.appendChild(o);
+        });
+        sel.addEventListener('change', function () { muat(this.value); });
+      }).catch(function () {});
+      muat('');
+    } else {
+      muat(s.wilayah_id);
+    }
+  };
+
+  /* ========== 7. Modal, konfirmasi, toast ========== */
   var modalEl = $('#modal'), fokusSebelum = null;
   function modal(html, pasang) {
     var buka = function () {
@@ -991,27 +2017,6 @@
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(teks).then(jadi, cadangan); else cadangan();
     function cadangan() { var a = document.createElement('textarea'); a.value = teks; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); jadi(); } catch (x) { toast('Gagal menyalin', 'bahaya'); } a.remove(); }
   }
-  function bukaPin(tujuan) {
-    var isian = '';
-    modal('<div style="text-align:center"><span class="avatar" style="margin:0 auto 12px;width:56px;height:56px">' + ik('kunci').replace('<svg', '<svg width="26" height="26" style="fill:none;stroke:currentColor;stroke-width:2"') + '</span><h2 id="modalJudul" style="font-size:20px">Masuk panel pengurus</h2><p style="color:var(--redup);margin:6px 0 0">Masukkan PIN. Contoh: <b>1234</b></p>' +
-      '<div class="pin-titik" id="pinTitik" aria-hidden="true"><span></span><span></span><span></span><span></span></div><label class="sr" for="pinInput">PIN</label><input id="pinInput" class="sr" type="password" inputmode="numeric" autocomplete="off" maxlength="6">' +
-      '<div class="papan-pin">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 'hapus', 0, 'tutup'].map(function (n) { return n === 'hapus' ? '<button class="btn btn-garis" data-hapus-pin aria-label="Hapus angka">⌫</button>' : n === 'tutup' ? '<button class="btn btn-garis" data-tutup aria-label="Batal">' + ik('tutup') + '</button>' : '<button class="btn btn-garis" data-angka="' + n + '">' + n + '</button>'; }).join('') + '</div></div>', function (m) {
-      var inp = $('#pinInput', m), titik = $('#pinTitik', m), panjang = String(D.pengaturan.pin).length;
-      titik.innerHTML = new Array(panjang + 1).join('<span></span>');
-      function gambar() { $$('span', titik).forEach(function (s, i) { s.classList.toggle('isi', i < isian.length); }); }
-      function cek() {
-        gambar();
-        if (isian.length < panjang) return;
-        if (isian === String(D.pengaturan.pin)) { terbuka = true; sessionStorage.setItem('website-rt-buka', '1'); tutupModal(function () { location.hash = '#/panel/' + (tujuan && tujuan !== 'publik' ? tujuan : 'ringkas'); toast('Selamat datang, pengurus'); }); }
-        else { titik.classList.remove('salah'); void titik.offsetWidth; titik.classList.add('salah'); isian = ''; inp.value = ''; setTimeout(gambar, 350); if (navigator.vibrate) navigator.vibrate(120); }
-      }
-      m.addEventListener('click', function (ev) { var a = ev.target.closest('[data-angka]'); if (a) { isian += a.dataset.angka; cek(); } if (ev.target.closest('[data-hapus-pin]')) { isian = isian.slice(0, -1); gambar(); } });
-      inp.addEventListener('input', function () { isian = inp.value.replace(/\D/g, '').slice(0, panjang); inp.value = isian; cek(); });
-      setTimeout(function () { inp.focus(); }, 30);
-      m.addEventListener('keydown', function (ev) { if (/^\d$/.test(ev.key) && document.activeElement !== inp) { isian += ev.key; cek(); } });
-    });
-  }
-
   /* ========== 8. CSV & berkas ========== */
   function csvSel(v) { v = String(v == null ? '' : v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
   function keCSV(baris) { return '﻿' + baris.map(function (r) { return r.map(csvSel).join(','); }).join('\r\n'); }
@@ -1085,8 +2090,8 @@
     terapkan({ mode: jadi }); tampilan.mode = jadi; try { localStorage.setItem(KUNCI_TAMPILAN, JSON.stringify(tampilan)); } catch (x) {}
   });
   $('#btnPanel').addEventListener('click', function () {
-    if (document.body.classList.contains('panel')) { if (!DEMO) { terbuka = false; sessionStorage.removeItem('website-rt-buka'); } location.hash = '#/'; toast('Anda keluar dari panel'); }
-    else if (terbuka) location.hash = '#/panel/ringkas'; else bukaPin('ringkas');
+    if (document.body.classList.contains('panel')) { keluarSesi(); location.hash = '#/'; toast('Anda keluar dari panel'); }
+    else if (sesi()) location.hash = '#/panel/ringkas'; else pergi('#/masuk');
   });
   window.addEventListener('hashchange', function () { if (modalEl.open) tutupModal(); render(); });
   $('.bawah-publik a[href="#/"]').addEventListener('click', function (ev) { if (location.hash === '#/' || !location.hash) { ev.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } else if (location.hash === '#pengumuman' || location.hash === '#agenda' || location.hash === '#kontak') { window.addEventListener('hashchange', function s() { window.removeEventListener('hashchange', s); window.scrollTo({ top: 0, behavior: 'smooth' }); }); } });
