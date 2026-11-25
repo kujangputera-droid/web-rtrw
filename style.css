@@ -184,6 +184,11 @@ textarea { min-height: 90px; resize: vertical; }
 .cari { position: relative; flex: 1; min-width: 200px; }
 .cari svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; fill: none; stroke: var(--redup); stroke-width: 2; }
 .cari input { padding-left: 42px; border-radius: 999px; }
+/* v5 (PRD-v5 UI 1): pembungkus input cari wilayah di atas select — dipakai
+   helper pasangPencarianSelect (app.js). Input lebar penuh via aturan input
+   generik (width: 100%) + padding/border-radius dari .cari input di atas,
+   jadi di sini hanya jarak bawah yang ditambah. */
+.cari-wilayah { margin-bottom: 8px; }
 .alat { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
 
 /* Pekerja 3 (PRD-v4 UI 7): pemilih wilayah di atas panel — baris kartu,
@@ -435,6 +440,16 @@ td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 460px) { .langkah-grid { grid-template-columns: 1fr; } .langkah { min-height: 0; } .info-kartu { gap: 12px; } .tgl-blok { width: 52px; } }
 
 /* Masuk PIN */
+/* v5 (PRD-v5 UI 1): tab pilih peran di halaman masuk — dua tombol
+   <button class="tab-peran-tombol" role="tab"> di dalam .tab-peran.
+   Tombol garis seperti .btn-garis; aktif isi utama + teks putih seperti
+   .btn (token --utama / --pada-utama, kontras AA lolos dua mode, sama
+   seperti .btn). Tinggi ≥44px (target sentuh); flex-wrap supaya tidak
+   ada scroll horizontal di 320px. */
+.tab-peran { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab-peran-tombol { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--garis); background: var(--permukaan); color: var(--teks); font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.tab-peran-tombol:hover { background: var(--utama-latar); }
+.tab-peran-tombol[aria-selected="true"] { background: var(--utama); border-color: transparent; color: var(--pada-utama); }
 .pin-titik { display: flex; gap: 12px; justify-content: center; margin: 18px 0; }
 .pin-titik span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--utama-garis); transition: background-color var(--cepat), transform var(--cepat) var(--lentur); }
 .pin-titik span.isi { background: var(--utama); border-color: var(--utama); transform: scale(1.15); }

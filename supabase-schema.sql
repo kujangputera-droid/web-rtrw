@@ -261,13 +261,19 @@ on conflict (id) do nothing;
 -- Superadmin awal: nama 'Masdan', jabatan 'Superadmin', peran 'superadmin',
 -- status 'aktif', wa/email KOSONG, PIN awal '1234' (PIN lama) sebagai hash
 -- SHA-256. TIDAK ada pengurus contoh lain yang di-seed.
+-- v5: dijaga WHERE NOT EXISTS supaya file ini aman diterapkan ulang —
+-- tanpa penjaga, penerapan ulang akan membuat baris Masdan kedua (id acak).
 insert into public.pengurus
   (nama, jabatan, wa, email, peran, status, wilayah_id,
    pin_hash, kode_pemulihan_hash, pin_sementara)
-values
-  ('Masdan', 'Superadmin', '', '', 'superadmin', 'aktif',
-   'rt07-rw13-pagelaran',
-   encode(digest('1234', 'sha256'), 'hex'), null, false);
+select 'Masdan', 'Superadmin', '', '', 'superadmin', 'aktif',
+  'rt07-rw13-pagelaran',
+  encode(digest('1234', 'sha256'), 'hex'), null, false
+where not exists (
+  select 1 from public.pengurus
+  where nama = 'Masdan' and peran = 'superadmin'
+    and wilayah_id = 'rt07-rw13-pagelaran'
+);
 
 -- --- 4f. RPC SECURITY DEFINER (hash dihitung di server, hash tidak pernah keluar) ---
 -- verifikasi_pin: kembalikan baris pengurus (id, nama, jabatan, peran,
@@ -1307,7 +1313,8 @@ begin
     -- boleh semua wilayah
   elsif v_sesi.peran = 'admin_rw' then
     select * into v_w from public.wilayah where id = p_wilayah_id;
-    if not found or v_w.jenis <> 'rt' or v_w.rw_induk_id <> v_sesi.wilayah_id then
+    -- rw_induk_id bisa NULL (RT tanpa RW induk): <> atas NULL menghasilkan NULL, jadi pakai IS DISTINCT FROM.
+    if not found or v_w.jenis <> 'rt' or v_w.rw_induk_id is distinct from v_sesi.wilayah_id then
       return false;
     end if;
   else
@@ -1458,19 +1465,14 @@ grant execute on function public.daftar_semua_pengurus(text, text) to anon, auth
 -- tetap dapat baris, wa/email dikosongkan. Bila N3 yang menang, tambah
 -- satu baris di daftar_semua_pengurus: if v_sesi.peran = 'admin_rw'
 -- then return; end if;
--- N2: kebijakan RLS "daftar pengurus menunggu" atas pengurus TIDAK dihapus
--- (tetap ada di skema), tetapi GRANT INSERT-nya dicabut sehingga INSERT
--- langsung anon tertutup; pendaftaran HANYA lewat RPC daftar_pengurus.
--- Pengecekan frontend (hanya laporan, tidak diubah): TIDAK ADA kode
--- frontend yang INSERT langsung ke pengurus — satu-satunya .insert() ke
--- Supabase adalah c.from('wilayah').insert(...) di app.js:1302
--- (pendaftaran wilayah, memang lewat RLS anon). Pendaftaran pengurus
--- frontend memakai RPC daftar_pengurus (app.js:1234). supabase.js hanya
--- sinkronisasi tabel lokal (info/usaha/dst), bukan pengurus.
--- N6: kode verifikasi pendaftar TIDAK LAGI disimpan — daftar_pengurus
--- tetap memvalidasi p_kode_verifikasi terhadap wilayah.kode_verifikasi,
--- tetapi nilainya tidak ditulis ke mana pun; kolom pengurus.kode_verifikasi
--- di-DROP. Pembacaan p.kode_verifikasi di app.js SUDAH DIHAPUS oleh
+-- N2 (v5): kebijakan RLS "daftar pengurus menunggu" atas pengurus DIHAPUS
+-- di Bagian 6 (drop policy), GRANT INSERT-nya sudah dicabut di v4.
+-- Pendaftaran pengurus HANYA lewat RPC daftar_wilayah_pengurus (Ketua
+-- bersama wilayahnya) + tambah_pengurus (Tier 3 dari panel). Frontend
+-- v5 TIDAK ADA .insert() langsung ke pengurus maupun ke wilayah.
+-- N6 (v5): kode verifikasi pendaftar TIDAK LAGI dipakai — RPC daftar_pengurus
+-- DIHAPUS di Bagian 6-h; pendaftaran Ketua tidak lagi memakai kode
+-- verifikasi (lihat §7 PRD-v5). Kolom pengurus.kode_verifikasi di-DROP. Pembacaan p.kode_verifikasi di app.js SUDAH DIHAPUS oleh
 -- Pekerja perbaikan 6 (grep literal 'p.kode_verifikasi' di app.js
 -- kosong — yang tersisa hanya parameter p_kode_verifikasi saat daftar /
 -- ubah wilayah, bukan pembacaan kolom pengurus; UI Kelola Pengurus
@@ -1806,3 +1808,323 @@ update public.wilayah set rw_induk_id = 'rw13-pagelaran' where id = 'rt07-rw13-p
 -- untuk pengurus (wilayah) dan admin_rw (pengurus RT); N6 kolom
 -- pengurus.kode_verifikasi SUDAH TIDAK ADA. Kondisi akhir: pengurus 1
 -- (Masdan, PIN 1234 jalan), wilayah 2, log 0, sesi 0.
+
+-- ================= 6. REVISI BATCH v5 (PRD v4 -> v5, 25 Nov 2026) =================
+-- Pendaftaran wilayah + Ketua digabung dalam satu RPC (daftar_wilayah_pengurus);
+-- Ketua TIDAK buat PIN — PIN sementara + kode pemulihan dibuat server saat
+-- penyetuju klik setuju (setujui_wilayah) dan dikirim lewat WA. Pendaftaran
+-- pengurus publik DIHAPUS (daftar_pengurus di-DROP di akhir bagian ini);
+-- pengurus Tier 3 hanya ditambah dari dalam panel (tambah_pengurus).
+-- Kode verifikasi RW DIHAPUS (kolom wilayah.kode_verifikasi dibiarkan NULL
+-- sebagai legacy, tidak dipakai lagi). Semua RPC baru SECURITY DEFINER
+-- dengan search_path = public, extensions bila pakai digest.
+
+-- daftar_wilayah_pengurus: anon. Daftarkan wilayah (status='menunggu') +
+-- Ketuanya (peran admin_rt/admin_rw, status='menunggu', tanpa PIN) dalam
+-- satu panggilan. Id wilayah dibangun seperti app.js v4 (slug kelurahan).
+create function public.daftar_wilayah_pengurus(p_jenis text, p_nomor text, p_kelurahan text, p_kecamatan text, p_kota text, p_provinsi text, p_ketua_nama text, p_ketua_wa text, p_ketua_email text, p_rw_induk_id text)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  v_slug text;
+  v_id text;
+  v_rw_nomor text;
+  v_rw_induk text := nullif(btrim(coalesce(p_rw_induk_id, '')), '');
+begin
+  if p_jenis not in ('rt', 'rw') then
+    raise exception 'jenis wilayah harus rt atau rw';
+  end if;
+  if p_nomor is null or btrim(p_nomor) !~ '^[0-9]{1,3}$' then
+    raise exception 'nomor wilayah harus 1-3 angka';
+  end if;
+  if p_kelurahan is null or btrim(p_kelurahan) = '' then
+    raise exception 'kelurahan wajib diisi';
+  end if;
+  if p_ketua_nama is null or btrim(p_ketua_nama) = '' then
+    raise exception 'nama Ketua wajib diisi';
+  end if;
+  if p_ketua_wa is null or btrim(p_ketua_wa) = '' then
+    raise exception 'nomor WA Ketua wajib diisi';
+  end if;
+  if coalesce(p_ketua_email, '') <> '' and btrim(p_ketua_email) !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'format email Ketua tidak benar';
+  end if;
+  v_slug := regexp_replace(regexp_replace(lower(btrim(p_kelurahan)), '[^a-z0-9]+', '-', 'g'), '^-+|-+$', '', 'g');
+  if p_jenis = 'rw' then
+    if v_rw_induk is not null then
+      raise exception 'RW tidak boleh punya RW induk';
+    end if;
+    v_id := 'rw' || btrim(p_nomor) || '-' || v_slug;
+  else
+    if v_rw_induk is not null then
+      select w.nomor into v_rw_nomor from public.wilayah w
+      where w.id = v_rw_induk and w.jenis = 'rw' and w.status = 'aktif';
+      if not found then
+        raise exception 'RW induk tidak ditemukan atau tidak aktif';
+      end if;
+      v_id := 'rt' || btrim(p_nomor) || '-rw' || v_rw_nomor || '-' || v_slug;
+    else
+      v_id := 'rt' || btrim(p_nomor) || '-' || v_slug;
+    end if;
+  end if;
+  if exists (select 1 from public.wilayah w where w.id = v_id) then
+    raise exception 'wilayah sudah terdaftar';
+  end if;
+  insert into public.wilayah
+    (id, jenis, nomor, kelurahan, kecamatan, kota, provinsi,
+     ketua_nama, ketua_wa, ketua_email, rw_induk_id, kode_verifikasi, status)
+  values
+    (v_id, p_jenis, btrim(p_nomor), btrim(p_kelurahan),
+     coalesce(p_kecamatan, ''), coalesce(p_kota, ''), coalesce(p_provinsi, ''),
+     btrim(p_ketua_nama), btrim(p_ketua_wa), coalesce(btrim(p_ketua_email), ''),
+     v_rw_induk, null, 'menunggu');
+  insert into public.pengurus
+    (nama, jabatan, wa, email, peran, status, wilayah_id,
+     pin_hash, kode_pemulihan_hash, pin_sementara)
+  values
+    (btrim(p_ketua_nama), case when p_jenis = 'rw' then 'Ketua RW' else 'Ketua RT' end,
+     btrim(p_ketua_wa), coalesce(btrim(p_ketua_email), ''),
+     case when p_jenis = 'rw' then 'admin_rw' else 'admin_rt' end,
+     'menunggu', v_id, null, null, false);
+  return v_id;
+end;
+$$;
+grant execute on function public.daftar_wilayah_pengurus(text, text, text, text, text, text, text, text, text, text) to anon, authenticated;
+
+-- setujui_wilayah: aktifkan wilayah + Ketua BERSAMAAN (atomik). PIN sementara
+-- + kode pemulihan dibuat server, dikembalikan sekali ke penyetuju untuk
+-- dikirim lewat WA. Superadmin: wilayah mana pun. admin_rw: hanya RT yang
+-- rw_induk_id-nya = wilayah sesi. Wilayah bukan 'menunggu' -> kosong.
+create function public.setujui_wilayah(p_token text, p_wilayah_id text)
+returns table (pin text, kode text)
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_sesi record; v_w public.wilayah%rowtype; v_ketua public.pengurus%rowtype;
+  v_pin text;
+  v_kode text := '';
+  v_alfabet text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  i int;
+begin
+  select * into v_sesi from public._sesi_valid(p_token);
+  if not found then return; end if;
+  select * into v_w from public.wilayah where id = p_wilayah_id;
+  if not found then return; end if;
+  if v_sesi.peran = 'superadmin' then
+    -- boleh semua wilayah
+  elsif v_sesi.peran = 'admin_rw' then
+    if v_w.jenis <> 'rt' or v_w.rw_induk_id is distinct from v_sesi.wilayah_id then
+      return;
+    end if;
+  else
+    return;
+  end if;
+  if v_w.status <> 'menunggu' then return; end if;
+  select * into v_ketua from public.pengurus
+  where wilayah_id = p_wilayah_id
+    and peran in ('admin_rt', 'admin_rw')
+    and status = 'menunggu'
+  limit 1;
+  if not found then
+    raise exception 'Ketua yang menunggu tidak ditemukan';
+  end if;
+  v_pin := (1000 + floor(random() * 9000)::int)::text;
+  for i in 1..8 loop
+    v_kode := v_kode || substr(v_alfabet, 1 + floor(random() * length(v_alfabet))::int, 1);
+  end loop;
+  update public.wilayah set status = 'aktif' where id = p_wilayah_id;
+  update public.pengurus
+  set status = 'aktif',
+      pin_hash = encode(extensions.digest(v_pin, 'sha256'), 'hex'),
+      kode_pemulihan_hash = encode(extensions.digest(v_kode, 'sha256'), 'hex'),
+      pin_sementara = true
+  where id = v_ketua.id;
+  return query select v_pin, v_kode;
+end;
+$$;
+grant execute on function public.setujui_wilayah(text, text) to anon, authenticated;
+
+-- tolak_wilayah: hapus pengajuan — baris pengurus Ketua yang masih menunggu
+-- + baris wilayah (pendaftar bisa mendaftar ulang). Cek peran sama seperti
+-- setujui_wilayah. Hanya bila wilayah status='menunggu'.
+create function public.tolak_wilayah(p_token text, p_wilayah_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_sesi record; v_w public.wilayah%rowtype; v_ok boolean;
+begin
+  select * into v_sesi from public._sesi_valid(p_token);
+  if not found then return false; end if;
+  select * into v_w from public.wilayah where id = p_wilayah_id;
+  if not found then return false; end if;
+  if v_sesi.peran = 'superadmin' then
+    -- boleh semua wilayah
+  elsif v_sesi.peran = 'admin_rw' then
+    if v_w.jenis <> 'rt' or v_w.rw_induk_id is distinct from v_sesi.wilayah_id then
+      return false;
+    end if;
+  else
+    return false;
+  end if;
+  if v_w.status <> 'menunggu' then return false; end if;
+  delete from public.pengurus
+  where wilayah_id = p_wilayah_id
+    and peran in ('admin_rt', 'admin_rw')
+    and status = 'menunggu';
+  delete from public.wilayah
+  where id = p_wilayah_id and status = 'menunggu'
+  returning true into v_ok;
+  return coalesce(v_ok, false);
+end;
+$$;
+grant execute on function public.tolak_wilayah(text, text) to anon, authenticated;
+
+-- tambah_pengurus: tambah pengurus Tier 3 dari dalam panel (pendaftaran
+-- publik dihapus). Langsung aktif, PIN sementara + kode dibuat server.
+-- Peran token HANYA superadmin/admin_rt; cakupan via _boleh_wilayah.
+create function public.tambah_pengurus(p_token text, p_nama text, p_jabatan text, p_wa text, p_email text, p_wilayah_id text)
+returns table (pin text, kode text)
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_sesi record; v_wil public.wilayah%rowtype;
+  v_pin text;
+  v_kode text := '';
+  v_alfabet text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  i int;
+begin
+  select * into v_sesi from public._sesi_valid(p_token);
+  if not found then return; end if;
+  if v_sesi.peran not in ('superadmin', 'admin_rt') then return; end if;
+  if not public._boleh_wilayah(v_sesi.peran, v_sesi.wilayah_id, p_wilayah_id) then
+    return;
+  end if;
+  if p_nama is null or btrim(p_nama) = '' then
+    raise exception 'nama wajib diisi';
+  end if;
+  if p_wa is null or btrim(p_wa) = '' then
+    raise exception 'nomor WA wajib diisi';
+  end if;
+  if coalesce(p_email, '') <> '' and btrim(p_email) !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'format email tidak benar';
+  end if;
+  select * into v_wil from public.wilayah w where w.id = p_wilayah_id;
+  if not found then
+    raise exception 'wilayah tidak ditemukan';
+  end if;
+  if v_wil.status <> 'aktif' then
+    raise exception 'wilayah tidak aktif';
+  end if;
+  if exists (select 1 from public.pengurus
+             where nama = btrim(p_nama) and wilayah_id = p_wilayah_id
+               and status in ('menunggu', 'aktif')) then
+    raise exception 'nama sudah terdaftar di wilayah ini';
+  end if;
+  v_pin := (1000 + floor(random() * 9000)::int)::text;
+  for i in 1..8 loop
+    v_kode := v_kode || substr(v_alfabet, 1 + floor(random() * length(v_alfabet))::int, 1);
+  end loop;
+  insert into public.pengurus
+    (nama, jabatan, wa, email, peran, status, wilayah_id,
+     pin_hash, kode_pemulihan_hash, pin_sementara)
+  values
+    (btrim(p_nama), coalesce(nullif(btrim(p_jabatan), ''), 'Pengurus'),
+     btrim(p_wa), coalesce(btrim(p_email), ''),
+     'pengurus', 'aktif', p_wilayah_id,
+     encode(extensions.digest(v_pin, 'sha256'), 'hex'),
+     encode(extensions.digest(v_kode, 'sha256'), 'hex'),
+     true);
+  return query select v_pin, v_kode;
+end;
+$$;
+grant execute on function public.tambah_pengurus(text, text, text, text, text, text) to anon, authenticated;
+
+-- daftar_superadmin_aktif: anon. Daftar Superadmin aktif untuk tab
+-- Superadmin di halaman masuk (tanpa hash, tanpa WA/email).
+create function public.daftar_superadmin_aktif()
+returns table (id text, nama text, jabatan text, wilayah_id text)
+language plpgsql security definer set search_path = public as $$
+begin
+  return query
+  select p.id, p.nama, p.jabatan, p.wilayah_id
+  from public.pengurus p
+  where p.peran = 'superadmin' and p.status = 'aktif'
+  order by p.dibuat, p.nama;
+end;
+$$;
+grant execute on function public.daftar_superadmin_aktif() to anon, authenticated;
+
+-- wa_superadmin: anon. Nomor WA Superadmin aktif pertama (data publik by
+-- design, sama seperti ketua_wa wilayah aktif); '' bila kosong/tidak ada.
+create function public.wa_superadmin()
+returns text
+language plpgsql security definer set search_path = public as $$
+declare v_wa text;
+begin
+  select p.wa into v_wa from public.pengurus p
+  where p.peran = 'superadmin' and p.status = 'aktif'
+  order by p.dibuat
+  limit 1;
+  return coalesce(v_wa, '');
+end;
+$$;
+grant execute on function public.wa_superadmin() to anon, authenticated;
+
+-- --- 6-g. GUARD v5: setujui/tolak_pengurus TIDAK BOLEH menyetujui/menolak
+-- Ketua yang masih menunggu (peran admin_rt/admin_rw + status='menunggu').
+-- Ketua hanya disetujui/ditolak lewat setujui_wilayah/tolak_wilayah.
+-- Isi fungsi sama persis dengan 5e-c, hanya tambah guard setelah validasi sesi.
+create or replace function public.setujui_pengurus(p_token text, p_pengurus_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_sesi record; v_t public.pengurus%rowtype; v_ok boolean;
+begin
+  select * into v_sesi from public._sesi_valid(p_token);
+  if not found then return false; end if;
+  select * into v_t from public.pengurus where id = p_pengurus_id;
+  if not found then return false; end if;
+  if v_t.peran in ('admin_rt', 'admin_rw') and v_t.status = 'menunggu' then return false; end if;
+  if v_sesi.peran not in ('superadmin', 'admin_rt') then return false; end if;
+  if v_t.peran = 'superadmin' and v_sesi.pengurus_id <> v_t.id then return false; end if;
+  if not public._boleh_wilayah(v_sesi.peran, v_sesi.wilayah_id, v_t.wilayah_id) then
+    return false;
+  end if;
+  update public.pengurus set status = 'aktif'
+  where id = p_pengurus_id and status = 'menunggu'
+  returning true into v_ok;
+  return coalesce(v_ok, false);
+end;
+$$;
+grant execute on function public.setujui_pengurus(text, text) to anon, authenticated;
+
+create or replace function public.tolak_pengurus(p_token text, p_pengurus_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_sesi record; v_t public.pengurus%rowtype; v_ok boolean;
+begin
+  select * into v_sesi from public._sesi_valid(p_token);
+  if not found then return false; end if;
+  select * into v_t from public.pengurus where id = p_pengurus_id;
+  if not found then return false; end if;
+  if v_t.peran in ('admin_rt', 'admin_rw') and v_t.status = 'menunggu' then return false; end if;
+  if v_sesi.peran not in ('superadmin', 'admin_rt') then return false; end if;
+  if v_t.peran = 'superadmin' and v_sesi.pengurus_id <> v_t.id then return false; end if;
+  if not public._boleh_wilayah(v_sesi.peran, v_sesi.wilayah_id, v_t.wilayah_id) then
+    return false;
+  end if;
+  delete from public.pengurus
+  where id = p_pengurus_id and status = 'menunggu'
+  returning true into v_ok;
+  return coalesce(v_ok, false);
+end;
+$$;
+grant execute on function public.tolak_pengurus(text, text) to anon, authenticated;
+
+-- --- 6-h. Penutupan jalur lama v5 ---
+-- Pendaftaran pengurus publik dihapus (diganti tambah_pengurus dari panel).
+drop function if exists public.daftar_pengurus(text,text,text,text,text,text,text);
+-- Kode verifikasi RW dihapus (tidak dipakai lagi di mana pun).
+drop function if exists public.baca_kode_verifikasi(text,text);
+-- Anon tidak boleh lagi INSERT langsung ke wilayah (pendaftaran hanya lewat RPC daftar_wilayah_pengurus).
+revoke insert on public.wilayah from anon;
+-- Kebijakan INSERT anon wilayah dicabut bersama GRANT-nya di atas; SELECT wilayah aktif tetap (dipakai muatWilayah).
+drop policy if exists "daftar wilayah menunggu" on public.wilayah;
+-- Kebijakan mati di v5: pendaftaran pengurus publik dihapus (GRANT INSERT-nya sudah dicabut), jadi hapus kebijakannya.
+drop policy if exists "daftar pengurus menunggu" on public.pengurus;
